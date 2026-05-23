@@ -1,0 +1,1263 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PetPal</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --cream:#FAF6F0; --warm:#F2E8D9; --bark:#8B5E3C; --bark-light:#C49A6C;
+  --moss:#4A7C59; --gold:#E8A020; --red:#D4614A;
+  --dark:#2C2416; --mid:#6B5744; --border:#E0D5C5;
+  --shadow:0 4px 24px rgba(44,36,22,0.10); --shadow-lg:0 12px 48px rgba(44,36,22,0.15);
+  --radius:20px; --radius-sm:12px;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--dark);min-height:100vh;}
+
+/* NAV */
+nav{background:var(--dark);padding:0 24px;display:flex;align-items:center;justify-content:space-between;height:64px;position:sticky;top:0;z-index:100;}
+.logo{font-family:'Fraunces',serif;font-size:22px;color:var(--cream);}
+.logo span{color:var(--bark-light);}
+.nav-tabs{display:flex;gap:4px;}
+.nav-tab{background:none;border:none;color:rgba(250,246,240,0.5);font-family:'DM Sans',sans-serif;font-size:14px;font-weight:500;padding:8px 16px;border-radius:8px;cursor:pointer;transition:all 0.2s;}
+.nav-tab:hover{color:var(--cream);background:rgba(255,255,255,0.08);}
+.nav-tab.active{color:var(--dark);background:var(--bark-light);}
+.user-badge{display:flex;align-items:center;gap:10px;}
+.user-email{font-size:12px;color:rgba(250,246,240,0.6);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.btn-logout{background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);color:var(--cream);font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;padding:6px 12px;border-radius:8px;cursor:pointer;}
+.btn-logout:hover{background:rgba(255,255,255,0.18);}
+.active-pet-badge{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:100px;padding:5px 12px 5px 8px;cursor:pointer;transition:all 0.2s;}
+.active-pet-badge:hover{background:rgba(255,255,255,0.15);}
+.active-pet-avatar{width:26px;height:26px;border-radius:50%;background:var(--warm);display:flex;align-items:center;justify-content:center;font-size:14px;overflow:hidden;flex-shrink:0;}
+.active-pet-avatar img{width:100%;height:100%;object-fit:cover;display:none;}
+#activePetName{font-size:13px;font-weight:600;color:var(--cream);max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+
+/* MAIN */
+main{max-width:960px;margin:0 auto;padding:32px 24px 80px;}
+
+/* SECCIONES - CLAVE */
+.app-section{display:none;}
+.app-section.active{display:block;animation:fadeIn 0.3s ease;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
+
+/* TITULOS */
+.page-title{font-family:'Fraunces',serif;font-size:32px;font-weight:700;margin-bottom:6px;}
+.page-subtitle{font-size:15px;color:var(--mid);margin-bottom:32px;}
+
+/* CARD */
+.card{background:white;border-radius:var(--radius);padding:28px;box-shadow:var(--shadow);border:1px solid var(--border);margin-bottom:20px;}
+.card-title{font-family:'Fraunces',serif;font-size:18px;font-weight:700;margin-bottom:20px;}
+
+/* PERFIL */
+.profile-hero{background:linear-gradient(135deg,var(--bark) 0%,var(--dark) 100%);border-radius:var(--radius);padding:36px;color:white;display:flex;align-items:center;gap:32px;margin-bottom:20px;box-shadow:var(--shadow-lg);}
+.avatar-ring{width:110px;height:110px;border-radius:50%;border:4px solid var(--bark-light);background:var(--warm);display:flex;align-items:center;justify-content:center;font-size:52px;flex-shrink:0;cursor:pointer;overflow:hidden;transition:transform 0.2s;}
+.avatar-ring:hover{transform:scale(1.05);}
+.avatar-ring img{width:100%;height:100%;object-fit:cover;}
+.profile-info h2{font-family:'Fraunces',serif;font-size:28px;font-style:italic;margin-bottom:4px;}
+.profile-info p{opacity:0.75;font-size:14px;margin-bottom:12px;}
+.profile-chips{display:flex;flex-wrap:wrap;gap:8px;}
+.chip{background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.25);padding:4px 12px;border-radius:100px;font-size:12px;font-weight:500;}
+.profile-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;}
+.field-group{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+label{display:block;font-size:12px;font-weight:600;color:var(--mid);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;}
+input[type=text],input[type=number],input[type=date],input[type=password],select,textarea{width:100%;padding:10px 14px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-family:'DM Sans',sans-serif;font-size:14px;color:var(--dark);background:var(--cream);outline:none;transition:border-color 0.2s;}
+input:focus,select:focus,textarea:focus{border-color:var(--bark);background:white;}
+textarea{resize:vertical;min-height:80px;}
+.field-block{margin-bottom:16px;}
+.section-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;}
+
+/* BOTONES */
+.btn{padding:10px 22px;border-radius:var(--radius-sm);border:none;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;cursor:pointer;transition:all 0.18s;display:inline-flex;align-items:center;gap:6px;}
+.btn-primary{background:var(--bark);color:white;}
+.btn-primary:hover{background:var(--dark);}
+.btn-success{background:var(--moss);color:white;}
+.btn-success:hover{background:#3a6347;}
+.btn-danger{background:var(--red);color:white;font-size:12px;padding:6px 12px;}
+.btn-ghost{background:transparent;border:1.5px solid var(--border);color:var(--mid);}
+.btn-ghost:hover{border-color:var(--bark);color:var(--bark);}
+
+/* STATS */
+.health-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:20px;}
+.stat-card{background:white;border-radius:var(--radius-sm);padding:20px 16px;text-align:center;border:1px solid var(--border);box-shadow:var(--shadow);}
+.stat-icon{font-size:28px;margin-bottom:6px;}
+.stat-value{font-family:'Fraunces',serif;font-size:24px;font-weight:700;color:var(--bark);}
+.stat-label{font-size:11px;color:var(--mid);text-transform:uppercase;letter-spacing:0.06em;margin-top:2px;}
+
+/* LOG */
+.log-list{list-style:none;}
+.log-item{display:flex;align-items:flex-start;gap:14px;padding:14px 0;border-bottom:1px solid var(--border);}
+.log-item:last-child{border-bottom:none;}
+.log-dot{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;}
+.log-dot.health{background:#FEE2E2;}.log-dot.vaccine{background:#DBEAFE;}.log-dot.vet{background:#FEF3C7;}
+.log-meta{flex:1;}
+.log-title{font-weight:600;font-size:14px;margin-bottom:2px;}
+.log-desc{font-size:13px;color:var(--mid);}
+.log-date{font-size:12px;color:var(--mid);white-space:nowrap;}
+
+/* ACTIVIDADES */
+.activity-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;}
+.activity-card{background:white;border-radius:var(--radius-sm);padding:18px;border:1px solid var(--border);box-shadow:var(--shadow);}
+.activity-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;}
+.activity-type{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;padding:3px 10px;border-radius:100px;}
+.type-paseo{background:#D1FAE5;color:#065F46;}.type-juego{background:#FEF3C7;color:#92400E;}
+.type-entrenamiento{background:#DBEAFE;color:#1E40AF;}.type-otro{background:#F3F4F6;color:#374151;}
+.activity-name{font-weight:600;font-size:15px;margin-bottom:4px;}
+.activity-detail{font-size:13px;color:var(--mid);}
+
+/* PESO */
+.weight-chart-wrap{width:100%;margin-top:16px;overflow-x:auto;}
+.weight-chart{display:flex;gap:0;min-width:260px;}
+.chart-y-axis{display:flex;flex-direction:column;justify-content:space-between;align-items:flex-end;padding:0 8px 28px 0;flex-shrink:0;}
+.chart-y-label{font-size:10px;color:var(--mid);line-height:1;}
+.chart-bars-area{flex:1;display:flex;flex-direction:column;}
+.chart-bars{display:flex;align-items:flex-end;gap:6px;height:160px;border-left:2px solid var(--border);border-bottom:2px solid var(--border);padding:8px 8px 0 8px;position:relative;}
+.bar-group{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;justify-content:flex-end;height:100%;}
+.bar{width:100%;background:var(--bark-light);border-radius:6px 6px 0 0;transition:height 0.5s ease;min-height:4px;position:relative;cursor:pointer;}
+.bar:hover{background:var(--bark);}
+.bar-tooltip{display:none;position:absolute;top:-32px;left:50%;transform:translateX(-50%);background:var(--dark);color:white;padding:3px 8px;border-radius:6px;font-size:11px;white-space:nowrap;z-index:10;}
+.bar:hover .bar-tooltip{display:block;}
+.bar-label{font-size:10px;color:var(--mid);text-align:center;line-height:1.2;}
+
+/* AGENDA */
+.upcoming-item{display:flex;gap:14px;align-items:center;padding:12px 0;border-bottom:1px solid var(--border);}
+.upcoming-item:last-child{border-bottom:none;}
+.upcoming-date-box{background:var(--warm);border-radius:var(--radius-sm);padding:8px 12px;text-align:center;flex-shrink:0;min-width:52px;}
+.upcoming-day{font-family:'Fraunces',serif;font-size:20px;font-weight:700;color:var(--bark);line-height:1;}
+.upcoming-month{font-size:10px;text-transform:uppercase;letter-spacing:0.06em;color:var(--mid);}
+.upcoming-info{flex:1;}
+.upcoming-title{font-weight:600;font-size:14px;}
+.upcoming-sub{font-size:13px;color:var(--mid);}
+.empty-state{text-align:center;padding:48px 24px;color:var(--mid);}
+.empty-state .icon{font-size:48px;margin-bottom:12px;}
+.empty-state p{font-size:14px;}
+
+/* MODAL */
+.modal-overlay{position:fixed;inset:0;background:rgba(44,36,22,0.45);display:flex;align-items:center;justify-content:center;z-index:200;padding:24px;opacity:0;pointer-events:none;transition:opacity 0.2s;}
+.modal-overlay.open{opacity:1;pointer-events:all;}
+.modal{background:white;border-radius:var(--radius);padding:32px;width:100%;max-width:480px;box-shadow:var(--shadow-lg);transform:translateY(16px);transition:transform 0.2s;}
+.modal-overlay.open .modal{transform:translateY(0);}
+.modal-title{font-family:'Fraunces',serif;font-size:22px;font-weight:700;margin-bottom:20px;}
+.modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:24px;}
+.toast{position:fixed;bottom:32px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--dark);color:white;padding:12px 24px;border-radius:100px;font-size:14px;font-weight:500;z-index:300;opacity:0;transition:all 0.3s;}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+/* LOGIN */
+#loginScreen{display:flex;min-height:100vh;align-items:center;justify-content:center;background:linear-gradient(135deg,var(--dark) 0%,#4a3420 50%,var(--bark) 100%);padding:24px;}
+.login-card{background:white;border-radius:28px;padding:48px 40px;width:100%;max-width:420px;box-shadow:0 32px 80px rgba(0,0,0,0.35);animation:slideUp 0.4s ease;}
+@keyframes slideUp{from{opacity:0;transform:translateY(24px);}to{opacity:1;transform:translateY(0);}}
+.login-logo{text-align:center;margin-bottom:32px;}
+.login-logo .paw{font-size:52px;display:block;margin-bottom:8px;}
+.login-logo h1{font-family:'Fraunces',serif;font-size:32px;font-weight:700;color:var(--dark);}
+.login-logo h1 span{color:var(--bark);}
+.login-logo p{font-size:14px;color:var(--mid);margin-top:4px;}
+.login-tabs{display:flex;background:var(--warm);border-radius:12px;padding:4px;margin-bottom:28px;gap:4px;}
+.login-tab{flex:1;padding:9px;border:none;background:transparent;border-radius:9px;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;color:var(--mid);cursor:pointer;transition:all 0.2s;}
+.login-tab.active{background:white;color:var(--dark);box-shadow:0 2px 8px rgba(44,36,22,0.12);}
+.login-error{font-size:13px;color:var(--red);min-height:20px;margin-bottom:8px;text-align:center;}
+.login-footer{text-align:center;margin-top:20px;}
+.login-footer button{background:none;border:none;color:var(--bark);font-family:'DM Sans',sans-serif;font-size:13px;cursor:pointer;text-decoration:underline;}
+.btn-login{width:100%;padding:13px;background:var(--bark);color:white;border:none;border-radius:14px;font-family:'DM Sans',sans-serif;font-size:15px;font-weight:600;cursor:pointer;transition:all 0.2s;margin-top:8px;}
+.btn-login:hover{background:var(--dark);}
+.btn-login:disabled{opacity:0.6;cursor:not-allowed;}
+
+/* PET SELECTOR */
+#petSelectScreen{display:none;min-height:100vh;align-items:center;justify-content:center;background:linear-gradient(135deg,var(--dark) 0%,#4a3420 50%,var(--bark) 100%);padding:32px 24px;flex-direction:column;}
+.ps-header{text-align:center;margin-bottom:36px;}
+.ps-logo{font-family:'Fraunces',serif;font-size:34px;font-weight:700;color:var(--cream);margin-bottom:6px;}
+.ps-logo span{color:var(--bark-light);}
+.ps-subtitle{font-size:15px;color:rgba(250,246,240,0.65);margin-bottom:4px;}
+.ps-email{font-size:12px;color:rgba(250,246,240,0.4);}
+.pet-selector-grid{display:flex;gap:20px;flex-wrap:wrap;justify-content:center;max-width:680px;}
+.pet-card{background:white;border-radius:24px;padding:28px 20px 22px;width:180px;text-align:center;cursor:pointer;box-shadow:0 8px 32px rgba(0,0,0,0.22);transition:all 0.22s;position:relative;border:2px solid transparent;}
+.pet-card:hover{transform:translateY(-6px);border-color:var(--bark-light);}
+.pet-card-add{background:rgba(255,255,255,0.08);border:2px dashed rgba(250,246,240,0.3);}
+.pet-card-add:hover{background:rgba(255,255,255,0.14);border-color:var(--bark-light);}
+.pet-card-avatar{width:80px;height:80px;border-radius:50%;background:var(--warm);display:flex;align-items:center;justify-content:center;font-size:40px;margin:0 auto 14px;border:3px solid var(--bark-light);overflow:hidden;}
+.pet-card-avatar img{width:100%;height:100%;object-fit:cover;}
+.pet-card-avatar-add{background:rgba(255,255,255,0.1);border-color:rgba(250,246,240,0.3);font-size:32px;color:rgba(250,246,240,0.6);}
+.pet-card-name{font-family:'Fraunces',serif;font-size:17px;font-weight:700;color:var(--dark);margin-bottom:4px;}
+.pet-card-add .pet-card-name{color:rgba(250,246,240,0.8);}
+.pet-card-species{font-size:12px;color:var(--mid);}
+.pet-card-add .pet-card-species{color:rgba(250,246,240,0.45);}
+.pet-card-delete{position:absolute;top:10px;right:10px;background:var(--red);color:white;border:none;border-radius:50%;width:24px;height:24px;font-size:13px;cursor:pointer;opacity:0;transition:opacity 0.18s;display:flex;align-items:center;justify-content:center;line-height:1;}
+.pet-card:hover .pet-card-delete{opacity:1;}
+.ps-logout{margin-top:28px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.18);color:rgba(250,246,240,0.6);font-family:'DM Sans',sans-serif;font-size:13px;padding:8px 20px;border-radius:100px;cursor:pointer;}
+.ps-logout:hover{background:rgba(255,255,255,0.15);color:var(--cream);}
+.ps-toast{position:fixed;bottom:32px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--dark);color:white;padding:12px 24px;border-radius:100px;font-size:14px;z-index:300;opacity:0;transition:all 0.3s;}
+.ps-toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+/* GALERIA */
+.gallery-section{margin-top:28px;}
+.gallery-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;}
+.gallery-title{font-family:'Fraunces',serif;font-size:18px;font-weight:700;}
+.gallery-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
+.gallery-item{position:relative;border-radius:14px;overflow:hidden;aspect-ratio:1;cursor:pointer;box-shadow:var(--shadow);border:2px solid transparent;transition:all 0.2s;}
+.gallery-item:hover{transform:scale(1.03);border-color:var(--bark-light);}
+.gallery-item.is-fav{border-color:var(--gold);}
+.gallery-item img{width:100%;height:100%;object-fit:cover;display:block;}
+.gallery-item-overlay{position:absolute;inset:0;background:linear-gradient(to top,rgba(44,36,22,0.7) 0%,transparent 50%);opacity:0;transition:opacity 0.2s;display:flex;flex-direction:column;justify-content:flex-end;padding:10px;}
+.gallery-item:hover .gallery-item-overlay{opacity:1;}
+.gallery-item-desc{font-size:11px;color:white;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.gallery-item-date{font-size:10px;color:rgba(255,255,255,0.65);margin-top:2px;}
+.fav-badge{position:absolute;top:8px;right:8px;font-size:16px;}
+.gallery-empty{grid-column:1/-1;text-align:center;padding:40px 20px;color:var(--mid);}
+.gallery-empty .icon{font-size:40px;margin-bottom:10px;}
+
+/* LIGHTBOX */
+.lightbox-overlay{position:fixed;inset:0;background:rgba(20,14,8,0.92);display:flex;align-items:center;justify-content:center;z-index:500;padding:20px;opacity:0;pointer-events:none;transition:opacity 0.25s;}
+.lightbox-overlay.open{opacity:1;pointer-events:all;}
+.lightbox-content{position:relative;max-width:640px;width:100%;display:flex;flex-direction:column;align-items:center;gap:16px;}
+.lightbox-img{max-width:100%;max-height:70vh;border-radius:18px;object-fit:contain;box-shadow:0 24px 80px rgba(0,0,0,0.6);}
+.lightbox-info{background:rgba(255,255,255,0.07);border-radius:14px;padding:14px 20px;width:100%;color:white;text-align:center;}
+.lightbox-desc{font-size:15px;font-weight:500;margin-bottom:4px;}
+.lightbox-date{font-size:12px;color:rgba(255,255,255,0.5);}
+.lightbox-actions{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;}
+.lightbox-close{position:absolute;top:-12px;right:0;background:rgba(255,255,255,0.12);border:none;color:white;width:36px;height:36px;border-radius:50%;font-size:20px;cursor:pointer;}
+.lightbox-close:hover{background:rgba(255,255,255,0.22);}
+.btn-fav{background:rgba(232,160,32,0.15);border:1.5px solid var(--gold);color:var(--gold);font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;padding:8px 18px;border-radius:100px;cursor:pointer;}
+.btn-fav.active,.btn-fav:hover{background:var(--gold);color:white;}
+.btn-del-photo{background:rgba(212,97,74,0.15);border:1.5px solid var(--red);color:var(--red);font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;padding:8px 18px;border-radius:100px;cursor:pointer;}
+.btn-del-photo:hover{background:var(--red);color:white;}
+.upload-drop-area{border:2px dashed var(--bark-light);border-radius:14px;padding:32px 20px;text-align:center;cursor:pointer;margin-bottom:16px;background:var(--cream);}
+.upload-drop-area:hover{border-color:var(--bark);background:var(--warm);}
+.upload-drop-area.has-preview{border-style:solid;border-color:var(--bark);padding:0;overflow:hidden;}
+.upload-drop-area img{width:100%;border-radius:12px;display:block;max-height:220px;object-fit:cover;}
+.upload-icon{font-size:36px;margin-bottom:8px;}
+.upload-hint{font-size:13px;color:var(--mid);}
+.new-pet-photo-area{display:flex;flex-direction:column;align-items:center;gap:10px;margin-bottom:16px;}
+#newPetPhotoPreview{width:80px;height:80px;border-radius:50%;object-fit:cover;border:3px solid var(--bark-light);display:none;}
+.photo-upload-btn{font-size:12px;color:var(--bark);background:none;border:1.5px dashed var(--bark-light);border-radius:10px;padding:7px 16px;cursor:pointer;font-family:'DM Sans',sans-serif;}
+.photo-upload-btn:hover{background:var(--warm);}
+
+#appScreen{display:none;}
+
+@media(max-width:600px){
+  .profile-grid,.field-group{grid-template-columns:1fr;}
+  .profile-hero{flex-direction:column;text-align:center;}
+  .nav-tabs .nav-tab{padding:8px 8px;font-size:12px;}
+  .health-stats{grid-template-columns:1fr 1fr;}
+  .activity-grid{grid-template-columns:1fr;}
+  .gallery-grid{grid-template-columns:repeat(2,1fr);}
+}
+</style>
+</head>
+<body>
+
+<!-- FIREBASE MODULE -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { getFirestore, doc, setDoc, getDoc, collection, getDocs, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const FB = {
+  apiKey:"AIzaSyDvytU3JzHKB4eSYIITifeKH29o2J0nZ5c",
+  authDomain:"petpal-9ca01.firebaseapp.com",
+  projectId:"petpal-9ca01",
+  storageBucket:"petpal-9ca01.firebasestorage.app",
+  messagingSenderId:"1007633000670",
+  appId:"1:1007633000670:web:fbcb858a073c9cadb83a4f"
+};
+const app  = initializeApp(FB);
+const auth = getAuth(app);
+const db   = getFirestore(app);
+let fbUser = null;
+let fbPetId = null;
+
+const EMOJI = {Perro:'🐶',Gato:'🐱',Conejo:'🐰',Pajaro:'🐦',Tortuga:'🐢',Pez:'🐟',Hamster:'🐹',Otro:'🐾'};
+
+// Al iniciar siempre cerrar sesión para forzar login
+signOut(auth).catch(function(){});
+
+onAuthStateChanged(auth, async function(user) {
+  if (user) {
+    fbUser = user;
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('appScreen').style.display   = 'none';
+    document.getElementById('petSelectScreen').style.display = 'flex';
+    document.getElementById('userEmail').textContent = user.email;
+    await renderPetSelector();
+  } else {
+    fbUser = null; fbPetId = null;
+    document.getElementById('loginScreen').style.display     = 'flex';
+    document.getElementById('petSelectScreen').style.display = 'none';
+    document.getElementById('appScreen').style.display       = 'none';
+  }
+});
+
+window.doLogin = async function() {
+  var email = document.getElementById('loginEmail').value.trim();
+  var pass  = document.getElementById('loginPass').value;
+  var btn   = document.getElementById('loginBtn');
+  var err   = document.getElementById('loginError');
+  err.textContent = '';
+  if (!email || !pass) { err.textContent = 'Completa correo y contrasena.'; return; }
+  btn.disabled = true; btn.textContent = 'Ingresando...';
+  try { await signInWithEmailAndPassword(auth, email, pass); }
+  catch(e) { err.textContent = fbErr(e.code); btn.disabled=false; btn.textContent='Ingresar'; }
+};
+
+window.doRegister = async function() {
+  var email = document.getElementById('loginEmail').value.trim();
+  var pass  = document.getElementById('loginPass').value;
+  var btn   = document.getElementById('loginBtn');
+  var err   = document.getElementById('loginError');
+  err.textContent = '';
+  if (!email || !pass) { err.textContent = 'Completa correo y contrasena.'; return; }
+  if (pass.length < 6) { err.textContent = 'La contrasena debe tener al menos 6 caracteres.'; return; }
+  btn.disabled = true; btn.textContent = 'Creando cuenta...';
+  try { await createUserWithEmailAndPassword(auth, email, pass); }
+  catch(e) { err.textContent = fbErr(e.code); btn.disabled=false; btn.textContent='Crear cuenta'; }
+};
+
+window.doReset = async function() {
+  var email = document.getElementById('loginEmail').value.trim();
+  var err   = document.getElementById('loginError');
+  if (!email) { err.textContent = 'Ingresa tu correo primero.'; return; }
+  try { await sendPasswordResetEmail(auth, email); err.style.color='#4A7C59'; err.textContent='Revisa tu correo!'; }
+  catch(e) { err.textContent = fbErr(e.code); }
+};
+
+window.doLogout = async function() {
+  await signOut(auth);
+  fbPetId = null;
+  document.getElementById('loginEmail').value='';
+  document.getElementById('loginPass').value='';
+  document.getElementById('loginError').textContent='';
+  document.getElementById('loginBtn').disabled=false;
+  document.getElementById('loginBtn').textContent='Ingresar';
+  switchTab('login');
+};
+
+window.goToPetSelector = async function() {
+  fbPetId = null;
+  document.getElementById('appScreen').style.display='none';
+  document.getElementById('petSelectScreen').style.display='flex';
+  await renderPetSelector();
+};
+
+window.saveToFirestore = async function() {
+  if (!fbUser || !fbPetId) return;
+  try {
+    await setDoc(doc(db,'users',fbUser.uid,'pets',fbPetId), {
+      profile:window.state.profile, weights:window.state.weights, health:window.state.health,
+      activities:window.state.activities, events:window.state.events, photos:window.state.photos||[]
+    });
+  } catch(e) { console.error(e); }
+};
+
+window.loadPetFromFirestore = async function(petId) {
+  if (!fbUser) return;
+  fbPetId = petId;
+  try {
+    // Mutar el objeto en lugar de reemplazarlo (var state = window.state debe seguir apuntando al mismo objeto)
+    var snap = await getDoc(doc(db,'users',fbUser.uid,'pets',petId));
+    var d = snap.exists() ? snap.data() : {};
+    window.state.profile    = d.profile    || {};
+    window.state.weights    = d.weights    || [];
+    window.state.health     = d.health     || [];
+    window.state.activities = d.activities || [];
+    window.state.events     = d.events     || [];
+    window.state.photos     = d.photos     || [];
+    fillForm(); renderAll();
+    var p = state.profile;
+    document.getElementById('activePetName').textContent = p.name || 'Mi mascota';
+    document.getElementById('activePetEmoji').textContent = EMOJI[p.species] || '🐾';
+    if (p.photo) {
+      document.getElementById('activePetPhoto').src = p.photo;
+      document.getElementById('activePetPhoto').style.display = 'inline-block';
+      document.getElementById('activePetEmoji').style.display = 'none';
+    } else {
+      document.getElementById('activePetPhoto').style.display = 'none';
+      document.getElementById('activePetEmoji').style.display = 'inline';
+    }
+    document.getElementById('petSelectScreen').style.display = 'none';
+    document.getElementById('appScreen').style.display = 'block';
+    // Siempre arrancar en Perfil al cambiar de mascota
+    var allSections = document.getElementsByClassName('app-section');
+    for (var si=0; si<allSections.length; si++) allSections[si].classList.remove('active');
+    var allTabs = document.getElementsByClassName('nav-tab');
+    for (var ti=0; ti<allTabs.length; ti++) allTabs[ti].classList.remove('active');
+    document.getElementById('section-perfil').classList.add('active');
+    allTabs[0].classList.add('active');
+    // Resetear todas las fechas a hoy
+    var todayStr = new Date().toISOString().split('T')[0];
+    var dateInputs = document.querySelectorAll('input[type=date]');
+    for (var di=0; di<dateInputs.length; di++) dateInputs[di].value = todayStr;
+  } catch(e) { console.error(e); }
+};
+
+window.loadAllPets = async function() {
+  if (!fbUser) return [];
+  try {
+    var snap = await getDocs(collection(db,'users',fbUser.uid,'pets'));
+    return snap.docs.map(function(d) { return Object.assign({id:d.id}, d.data()); });
+  } catch(e) { return []; }
+};
+
+window.deletePetFS = async function(petId) {
+  if (!fbUser) return;
+  await deleteDoc(doc(db,'users',fbUser.uid,'pets',petId));
+};
+
+window.savePetProfile = async function(petId, profileData) {
+  if (!fbUser) return;
+  try {
+    var ref  = doc(db,'users',fbUser.uid,'pets',petId);
+    var snap = await getDoc(ref);
+    var ex   = snap.exists() ? snap.data() : {};
+    await setDoc(ref, Object.assign({}, ex, {profile: Object.assign({}, ex.profile||{}, profileData)}));
+  } catch(e) { console.error(e); }
+};
+
+async function renderPetSelector() {
+  var pets  = await loadAllPets();
+  var grid  = document.getElementById('petSelectorGrid');
+  var html  = '';
+  for (var i=0; i<pets.length; i++) {
+    var pet     = pets[i];
+    var prof    = pet.profile || {};
+    var emoji   = EMOJI[prof.species] || '🐾';
+    var name    = prof.name || 'Sin nombre';
+    var species = prof.species || '';
+    var hasPhoto = !!prof.photo;
+    html += '<div class="pet-card" onclick="selectPet(\'' + pet.id + '\')">'
+      + '<div class="pet-card-avatar">'
+      + (hasPhoto ? '<img src="' + prof.photo + '" alt="' + name + '">' : '<span>' + emoji + '</span>')
+      + '</div>'
+      + '<div class="pet-card-name">' + name + '</div>'
+      + (species ? '<div class="pet-card-species">' + emoji + ' ' + species + '</div>' : '')
+      + '<button class="pet-card-delete" onclick="event.stopPropagation();confirmDelPet(\'' + pet.id + '\',\'' + name.replace(/'/g,"") + '\')">x</button>'
+      + '</div>';
+  }
+  if (pets.length < 3) {
+    html += '<div class="pet-card pet-card-add" onclick="openAddPetModal()">'
+      + '<div class="pet-card-avatar pet-card-avatar-add"><span>+</span></div>'
+      + '<div class="pet-card-name">Agregar mascota</div>'
+      + '<div class="pet-card-species">' + pets.length + '/3 mascotas</div>'
+      + '</div>';
+  }
+  grid.innerHTML = html;
+  document.getElementById('psUserEmail').textContent = fbUser ? fbUser.email : '';
+}
+
+window.selectPet = async function(petId) { await loadPetFromFirestore(petId); };
+
+window.confirmDelPet = async function(petId, name) {
+  if (!confirm('Eliminar a ' + name + '? Se borraran todos sus datos.')) return;
+  await deletePetFS(petId);
+  await renderPetSelector();
+  psToast('Mascota eliminada');
+};
+
+function psToast(msg) {
+  var t = document.getElementById('petSelectToast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(function(){ t.classList.remove('show'); }, 2500);
+}
+
+window.openAddPetModal = function() {
+  document.getElementById('newPetName').value='';
+  document.getElementById('newPetSpecies').value='';
+  document.getElementById('newPetPhotoPreview').style.display='none';
+  document.getElementById('newPetPhotoData').value='';
+  document.getElementById('addPetModal').classList.add('open');
+};
+window.closeAddPetModal = function() { document.getElementById('addPetModal').classList.remove('open'); };
+
+window.newPetLoadPhoto = function(event) {
+  var file = event.target.files[0];
+  if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    document.getElementById('newPetPhotoData').value = e.target.result;
+    document.getElementById('newPetPhotoPreview').src = e.target.result;
+    document.getElementById('newPetPhotoPreview').style.display = 'block';
+  };
+  reader.readAsDataURL(file);
+};
+
+window.saveNewPet = async function() {
+  var name = document.getElementById('newPetName').value.trim();
+  if (!name) { alert('Ingresa un nombre.'); return; }
+  var pets = await loadAllPets();
+  if (pets.length >= 3) { alert('Ya tienes 3 mascotas.'); return; }
+  var petId = 'pet_' + Date.now();
+  await savePetProfile(petId, {
+    name: name,
+    species: document.getElementById('newPetSpecies').value,
+    photo: document.getElementById('newPetPhotoData').value || ''
+  });
+  closeAddPetModal();
+  await renderPetSelector();
+  psToast('Mascota agregada!');
+};
+
+function fbErr(code) {
+  var m = {
+    'auth/invalid-email':'Correo invalido.',
+    'auth/user-not-found':'No existe cuenta con ese correo.',
+    'auth/wrong-password':'Contrasena incorrecta.',
+    'auth/email-already-in-use':'Ese correo ya esta registrado.',
+    'auth/too-many-requests':'Demasiados intentos. Intenta mas tarde.',
+    'auth/invalid-credential':'Correo o contrasena incorrectos.',
+    'auth/network-request-failed':'Sin conexion.'
+  };
+  return m[code] || 'Ocurrio un error.';
+}
+</script>
+
+<!-- LOGIN -->
+<div id="loginScreen">
+  <div class="login-card">
+    <div class="login-logo">
+      <span class="paw">🐾</span>
+      <h1>Pet<span>Pal</span></h1>
+      <p>El diario de salud de tu mascota</p>
+    </div>
+    <div class="login-tabs">
+      <button class="login-tab active" id="tabLogin" onclick="switchTab('login')">Iniciar sesion</button>
+      <button class="login-tab" id="tabRegister" onclick="switchTab('register')">Crear cuenta</button>
+    </div>
+    <div class="field-block"><label>Correo electronico</label><input type="text" id="loginEmail" placeholder="tu@correo.com"></div>
+    <div class="field-block"><label>Contrasena</label><input type="password" id="loginPass" placeholder="••••••••"></div>
+    <div class="login-error" id="loginError"></div>
+    <button class="btn-login" id="loginBtn">Ingresar</button>
+    <div class="login-footer"><button id="btnReset">Olvidaste tu contrasena?</button></div>
+  </div>
+</div>
+
+<!-- PET SELECTOR -->
+<div id="petSelectScreen">
+  <div class="ps-header">
+    <div class="ps-logo">🐾 Pet<span>Pal</span></div>
+    <div class="ps-subtitle">Con quien vamos a trabajar hoy?</div>
+    <div class="ps-email" id="psUserEmail"></div>
+  </div>
+  <div class="pet-selector-grid" id="petSelectorGrid"></div>
+  <button class="ps-logout" id="btnPsLogout">Cerrar sesion</button>
+  <div class="ps-toast" id="petSelectToast"></div>
+</div>
+
+<!-- MODAL NUEVA MASCOTA -->
+<div class="modal-overlay" id="addPetModal">
+  <div class="modal">
+    <div class="modal-title">🐾 Nueva mascota</div>
+    <div class="new-pet-photo-area">
+      <img id="newPetPhotoPreview" src="" alt="Foto">
+      <button class="photo-upload-btn" onclick="document.getElementById('newPetPhotoInput').click()">Agregar foto (opcional)</button>
+      <input type="file" id="newPetPhotoInput" accept="image/*" style="display:none" onchange="newPetLoadPhoto(event)">
+      <input type="hidden" id="newPetPhotoData">
+    </div>
+    <div class="field-block"><label>Nombre *</label><input type="text" id="newPetName" placeholder="Ej: Luna, Simon, Toby..."></div>
+    <div class="field-block"><label>Especie</label>
+      <select id="newPetSpecies">
+        <option value="">Elegir...</option>
+        <option value="Perro">Perro</option>
+        <option value="Gato">Gato</option>
+        <option value="Conejo">Conejo</option>
+        <option value="Pajaro">Pajaro</option>
+        <option value="Tortuga">Tortuga</option>
+        <option value="Pez">Pez</option>
+        <option value="Hamster">Hamster</option>
+        <option value="Otro">Otro</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeAddPetModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveNewPet()">Crear mascota</button>
+    </div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="appScreen">
+<nav>
+  <div class="logo">🐾 Pet<span>Pal</span></div>
+  <div class="nav-tabs">
+    <button class="nav-tab active" onclick="showSection('perfil',this)">Perfil</button>
+    <button class="nav-tab" onclick="showSection('salud',this)">Salud</button>
+    <button class="nav-tab" onclick="showSection('actividades',this)">Actividades</button>
+    <button class="nav-tab" onclick="showSection('agenda',this)">Agenda</button>
+    <button class="nav-tab" onclick="showSection('fotos',this)">Fotos</button>
+  </div>
+  <div class="user-badge">
+    <button class="active-pet-badge" id="btnChangePet" title="Cambiar mascota">
+      <div class="active-pet-avatar">
+        <span id="activePetEmoji">🐾</span>
+        <img id="activePetPhoto" src="" alt="">
+      </div>
+      <span id="activePetName">Mi mascota</span>
+    </button>
+    <span class="user-email" id="userEmail"></span>
+    <button class="btn-logout" id="btnNavLogout">Salir</button>
+  </div>
+</nav>
+<main>
+
+<!-- PERFIL -->
+<div class="app-section active" id="section-perfil">
+  <p class="page-title">Mi mascota</p>
+  <p class="page-subtitle">Toda la info en un solo lugar</p>
+  <div class="profile-hero" id="profileHero">
+    <div class="avatar-ring" onclick="document.getElementById('photoInput').click()">
+      <span id="avatarEmoji">🐾</span>
+      <img id="avatarImg" src="" alt="" style="display:none;">
+    </div>
+    <input type="file" id="photoInput" accept="image/*" style="display:none" onchange="loadPhoto(event)">
+    <div class="profile-info">
+      <h2 id="heroName">Tu mascota</h2>
+      <p id="heroSub">Completa el perfil para empezar</p>
+      <div class="profile-chips" id="heroChips"></div>
+    </div>
+  </div>
+  <div class="profile-grid">
+    <div class="card">
+      <div class="card-title">🐶 Datos basicos</div>
+      <div class="field-block"><label>Nombre</label><input type="text" id="petName" placeholder="Ej: Luna" oninput="updateHero()"></div>
+      <div class="field-group">
+        <div class="field-block"><label>Especie</label>
+          <select id="petSpecies" onchange="updateEmoji()">
+            <option value="">Elegir...</option>
+            <option value="Perro">🐶 Perro</option>
+            <option value="Gato">🐱 Gato</option>
+            <option value="Conejo">🐰 Conejo</option>
+            <option value="Pajaro">🐦 Pajaro</option>
+            <option value="Tortuga">🐢 Tortuga</option>
+            <option value="Pez">🐟 Pez</option>
+            <option value="Hamster">🐹 Hamster</option>
+            <option value="Otro">🐾 Otro</option>
+          </select>
+        </div>
+        <div class="field-block"><label>Raza</label><input type="text" id="petBreed" placeholder="Ej: Labrador" oninput="updateHero()"></div>
+      </div>
+      <div class="field-group">
+        <div class="field-block"><label>Fecha de nac.</label><input type="date" id="petBirth" oninput="updateHero()"></div>
+        <div class="field-block"><label>Sexo</label>
+          <select id="petSex"><option value="">Elegir...</option><option value="Macho">Macho</option><option value="Hembra">Hembra</option></select>
+        </div>
+      </div>
+      <div class="field-block"><label>Color / Pelaje</label><input type="text" id="petColor" placeholder="Ej: Marron con blanco"></div>
+      <button class="btn btn-primary" onclick="saveProfile()">Guardar perfil</button>
+    </div>
+    <div class="card">
+      <div class="card-title">📋 Datos adicionales</div>
+      <div class="field-block"><label>Numero de microchip</label><input type="text" id="petChip" placeholder="Opcional"></div>
+      <div class="field-block"><label>Veterinario</label><input type="text" id="petVet" placeholder="Nombre del veterinario"></div>
+      <div class="field-block"><label>Telefono veterinario</label><input type="text" id="petVetPhone" placeholder="Ej: +54 261 ..."></div>
+      <div class="field-block"><label>Castrado/a</label>
+        <select id="petCastrated"><option value="">No especificado</option><option value="Si">Si</option><option value="No">No</option></select>
+      </div>
+      <div class="field-block"><label>Alergias / condiciones</label><textarea id="petAllergies" placeholder="Ej: Alergico al pollo..."></textarea></div>
+    </div>
+  </div>
+</div>
+
+<!-- FOTOS -->
+<div class="app-section" id="section-fotos">
+  <p class="page-title">Album de fotos</p>
+  <p class="page-subtitle">Los recuerdos de tu mascota</p>
+  <div class="section-row"><div></div><button class="btn btn-primary" onclick="openPhotoUploadModal()">+ Agregar foto</button></div>
+  <div class="gallery-grid" id="galleryGrid">
+    <div class="gallery-empty"><div class="icon">📷</div><p>Todavia no hay fotos.<br>Agrega el primer recuerdo!</p></div>
+  </div>
+</div>
+
+<!-- SALUD -->
+<div class="app-section" id="section-salud">
+  <p class="page-title">Salud</p>
+  <p class="page-subtitle">Historial medico y peso</p>
+  <div class="health-stats">
+    <div class="stat-card"><div class="stat-icon">⚖️</div><div class="stat-value" id="statPeso">—</div><div class="stat-label">Ultimo peso (kg)</div></div>
+    <div class="stat-card"><div class="stat-icon">💉</div><div class="stat-value" id="statVacunas">0</div><div class="stat-label">Vacunas</div></div>
+    <div class="stat-card"><div class="stat-icon">🩺</div><div class="stat-value" id="statVisitas">0</div><div class="stat-label">Visitas al vet</div></div>
+  </div>
+  <div class="card">
+    <div class="section-row">
+      <div class="card-title" style="margin-bottom:0">⚖️ Registro de peso</div>
+      <button class="btn btn-primary" onclick="openModal('weightModal')">+ Agregar</button>
+    </div>
+    <div class="weight-chart-wrap"><div class="weight-chart" id="weightChart"><div style="color:var(--mid);font-size:13px;padding:20px;">Sin registros aun</div></div></div>
+  </div>
+  <div class="card">
+    <div class="section-row">
+      <div class="card-title" style="margin-bottom:0">🩺 Historial medico</div>
+      <button class="btn btn-primary" onclick="openModal('healthModal')">+ Agregar</button>
+    </div>
+    <ul class="log-list" id="healthLog"><li><div class="empty-state"><div class="icon">🏥</div><p>Sin registros medicos.</p></div></li></ul>
+  </div>
+</div>
+
+<!-- ACTIVIDADES -->
+<div class="app-section" id="section-actividades">
+  <p class="page-title">Actividades</p>
+  <p class="page-subtitle">Paseos, juegos y entrenamientos</p>
+  <div class="section-row"><div></div><button class="btn btn-success" onclick="openModal('activityModal')">+ Nueva actividad</button></div>
+  <div class="activity-grid" id="activityGrid">
+    <div class="empty-state" style="grid-column:1/-1"><div class="icon">🦮</div><p>Sin actividades registradas todavia.</p></div>
+  </div>
+</div>
+
+<!-- AGENDA -->
+<div class="app-section" id="section-agenda">
+  <p class="page-title">Agenda</p>
+  <p class="page-subtitle">Proximos turnos y recordatorios</p>
+  <div class="section-row"><div></div><button class="btn btn-primary" onclick="openModal('eventModal')">+ Nuevo evento</button></div>
+  <div class="card">
+    <div class="card-title">📅 Proximos eventos</div>
+    <div id="eventList"><div class="empty-state"><div class="icon">📅</div><p>Sin eventos programados.</p></div></div>
+  </div>
+</div>
+
+</main>
+
+<!-- MODALES -->
+<div class="modal-overlay" id="weightModal">
+  <div class="modal">
+    <div class="modal-title">⚖️ Registrar peso</div>
+    <div class="field-block"><label>Peso (kg)</label><input type="number" id="weightVal" placeholder="Ej: 12.5" step="0.1" min="0"></div>
+    <div class="field-block"><label>Fecha</label><input type="date" id="weightDate"></div>
+    <div class="field-block"><label>Nota (opcional)</label><input type="text" id="weightNote" placeholder="Ej: Despues del veterinario"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('weightModal')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveWeight()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="healthModal">
+  <div class="modal">
+    <div class="modal-title">🩺 Registro medico</div>
+    <div class="field-block"><label>Tipo</label>
+      <select id="healthType">
+        <option value="vaccine">Vacuna</option>
+        <option value="vet">Visita al veterinario</option>
+        <option value="health">Medicamento</option>
+        <option value="other">Otro</option>
+      </select>
+    </div>
+    <div class="field-block"><label>Descripcion</label><input type="text" id="healthTitle" placeholder="Ej: Vacuna antirrabica..."></div>
+    <div class="field-block"><label>Fecha</label><input type="date" id="healthDate"></div>
+    <div class="field-block"><label>Notas adicionales</label><textarea id="healthNotes" placeholder="Detalles, proxima dosis..."></textarea></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('healthModal')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveHealth()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="activityModal">
+  <div class="modal">
+    <div class="modal-title">🦮 Nueva actividad</div>
+    <div class="field-block"><label>Tipo</label>
+      <select id="actType">
+        <option value="paseo">Paseo</option>
+        <option value="juego">Juego</option>
+        <option value="entrenamiento">Entrenamiento</option>
+        <option value="otro">Otro</option>
+      </select>
+    </div>
+    <div class="field-block"><label>Nombre / descripcion</label><input type="text" id="actName" placeholder="Ej: Paseo en el parque"></div>
+    <div class="field-group">
+      <div class="field-block"><label>Fecha</label><input type="date" id="actDate"></div>
+      <div class="field-block"><label>Duracion (min)</label><input type="number" id="actDuration" placeholder="Ej: 30" min="1"></div>
+    </div>
+    <div class="field-block"><label>Notas</label><textarea id="actNotes" placeholder="Como estuvo?"></textarea></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('activityModal')">Cancelar</button>
+      <button class="btn btn-success" onclick="saveActivity()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="eventModal">
+  <div class="modal">
+    <div class="modal-title">📅 Nuevo evento</div>
+    <div class="field-block"><label>Tipo</label>
+      <select id="eventType">
+        <option value="Veterinario">Veterinario</option>
+        <option value="Vacuna">Vacuna</option>
+        <option value="Bano">Bano / Grooming</option>
+        <option value="Medicamento">Medicamento</option>
+        <option value="Otro">Otro</option>
+      </select>
+    </div>
+    <div class="field-block"><label>Descripcion</label><input type="text" id="eventTitle" placeholder="Ej: Turno con Dr. Garcia"></div>
+    <div class="field-block"><label>Fecha</label><input type="date" id="eventDate"></div>
+    <div class="field-block"><label>Notas</label><input type="text" id="eventNotes" placeholder="Ej: Llevar libreta de vacunas"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('eventModal')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveEvent()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="photoUploadModal">
+  <div class="modal">
+    <div class="modal-title">📸 Agregar foto</div>
+    <div class="upload-drop-area" id="uploadDropArea" onclick="document.getElementById('galleryPhotoInput').click()">
+      <div class="upload-icon">🖼️</div>
+      <div class="upload-hint">Toca para elegir una foto</div>
+      <img id="uploadPreviewImg" src="" alt="" style="display:none;">
+    </div>
+    <input type="file" id="galleryPhotoInput" accept="image/*" style="display:none" onchange="galleryPhotoSelected(event)">
+    <input type="hidden" id="galleryPhotoData">
+    <div class="field-block"><label>Descripcion (opcional)</label><input type="text" id="galleryPhotoDesc" placeholder="Ej: Primer paseo en la plaza"></div>
+    <div class="field-block"><label>Fecha</label><input type="date" id="galleryPhotoDate"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closePhotoUploadModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveGalleryPhoto()">Guardar foto</button>
+    </div>
+  </div>
+</div>
+
+<div class="lightbox-overlay" id="lightbox">
+  <div class="lightbox-content">
+    <button class="lightbox-close" onclick="closeLightbox()">x</button>
+    <img class="lightbox-img" id="lightboxImg" src="" alt="">
+    <div class="lightbox-info">
+      <div class="lightbox-desc" id="lightboxDesc"></div>
+      <div class="lightbox-date" id="lightboxDate"></div>
+    </div>
+    <div class="lightbox-actions">
+      <button class="btn-fav" id="lightboxFavBtn" onclick="toggleFavPhoto()">Marcar favorita</button>
+      <button class="btn-del-photo" onclick="deleteGalleryPhoto()">Eliminar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+</div><!-- /appScreen -->
+
+<script>
+var currentTab = 'login';
+var lightboxIndex = -1;
+window.state = { profile:{}, weights:[], health:[], activities:[], events:[], photos:[] };
+var state = window.state;
+
+// Listeners para funciones del módulo Firebase (evita problemas de scope con type="module")
+document.addEventListener('DOMContentLoaded', function() {
+  document.getElementById('loginBtn').addEventListener('click', function() {
+    currentTab === 'login' ? window.doLogin() : window.doRegister();
+  });
+  document.getElementById('btnReset').addEventListener('click', function() { window.doReset(); });
+  document.getElementById('btnPsLogout').addEventListener('click', function() { window.doLogout(); });
+  document.getElementById('btnNavLogout').addEventListener('click', function() { window.doLogout(); });
+  document.getElementById('btnChangePet').addEventListener('click', function() { window.goToPetSelector(); });
+});
+
+function emptyState() {
+  return { profile:{}, weights:[], health:[], activities:[], events:[], photos:[] };
+}
+
+function switchTab(tab) {
+  currentTab = tab;
+  document.getElementById('tabLogin').classList.toggle('active', tab==='login');
+  document.getElementById('tabRegister').classList.toggle('active', tab==='register');
+  document.getElementById('loginBtn').textContent = tab==='login' ? 'Ingresar' : 'Crear cuenta';
+  document.getElementById('loginError').textContent = '';
+}
+
+function showSection(id, btn) {
+  var all = document.getElementsByClassName('app-section');
+  for (var i=0; i<all.length; i++) all[i].classList.remove('active');
+  var tabs = document.getElementsByClassName('nav-tab');
+  for (var j=0; j<tabs.length; j++) tabs[j].classList.remove('active');
+  var el = document.getElementById('section-' + id);
+  if (el) el.classList.add('active');
+  if (btn) btn.classList.add('active');
+}
+
+function save() { if (window.saveToFirestore) saveToFirestore(); }
+
+function renderAll() {
+  updateHero(); renderWeightChart(); renderHealthLog();
+  renderActivities(); renderEvents(); updateStats(); renderGallery();
+}
+
+function fillForm() {
+  var p = state.profile || {};
+  var fields = ['petName','petSpecies','petBreed','petBirth','petSex','petColor','petChip','petVet','petVetPhone','petCastrated','petAllergies'];
+  var keys   = ['name','species','breed','birth','sex','color','chip','vet','vetPhone','castrated','allergies'];
+  for (var i=0; i<fields.length; i++) {
+    var el = document.getElementById(fields[i]);
+    if (el) el.value = p[keys[i]] !== undefined ? p[keys[i]] : '';
+  }
+  if (p.photo) {
+    document.getElementById('avatarImg').src = p.photo;
+    document.getElementById('avatarImg').style.display = 'block';
+    document.getElementById('avatarEmoji').style.display = 'none';
+  } else {
+    document.getElementById('avatarImg').src = '';
+    document.getElementById('avatarImg').style.display = 'none';
+    document.getElementById('avatarEmoji').style.display = 'inline';
+    document.getElementById('avatarEmoji').textContent = '🐾';
+  }
+}
+
+function saveProfile() {
+  state.profile = {
+    name:      document.getElementById('petName').value,
+    species:   document.getElementById('petSpecies').value,
+    breed:     document.getElementById('petBreed').value,
+    birth:     document.getElementById('petBirth').value,
+    sex:       document.getElementById('petSex').value,
+    color:     document.getElementById('petColor').value,
+    chip:      document.getElementById('petChip').value,
+    vet:       document.getElementById('petVet').value,
+    vetPhone:  document.getElementById('petVetPhone').value,
+    castrated: document.getElementById('petCastrated').value,
+    allergies: document.getElementById('petAllergies').value,
+    photo:     state.profile.photo || ''
+  };
+  save(); updateHero(); updateNavBadge(); toast('Perfil guardado');
+}
+
+function updateHero() {
+  var name    = document.getElementById('petName').value || (state.profile && state.profile.name) || 'Tu mascota';
+  var species = document.getElementById('petSpecies').value || (state.profile && state.profile.species) || '';
+  var breed   = document.getElementById('petBreed').value || (state.profile && state.profile.breed) || '';
+  var birth   = document.getElementById('petBirth').value || (state.profile && state.profile.birth) || '';
+  document.getElementById('heroName').textContent = name;
+  var sub = species;
+  if (breed) sub += (sub ? ' - ' : '') + breed;
+  if (birth) { var age = getAge(birth); if (age) sub += (sub ? ' - ' : '') + age; }
+  document.getElementById('heroSub').textContent = sub || 'Completa el perfil para empezar';
+  var sex  = document.getElementById('petSex') ? document.getElementById('petSex').value : '';
+  var cast = document.getElementById('petCastrated') ? document.getElementById('petCastrated').value : '';
+  var chips = [];
+  if (sex) chips.push(sex);
+  if (cast === 'Si') chips.push('Castrado/a');
+  if (state.weights && state.weights.length) chips.push(state.weights[state.weights.length-1].val + ' kg');
+  document.getElementById('heroChips').innerHTML = chips.map(function(c){ return '<span class="chip">'+c+'</span>'; }).join('');
+  updateEmoji();
+}
+
+function updateEmoji() {
+  var map = {Perro:'🐶',Gato:'🐱',Conejo:'🐰',Pajaro:'🐦',Tortuga:'🐢',Pez:'🐟',Hamster:'🐹',Otro:'🐾'};
+  var species = document.getElementById('petSpecies') ? document.getElementById('petSpecies').value : '';
+  if (!(state.profile && state.profile.photo)) {
+    document.getElementById('avatarEmoji').textContent = map[species] || '🐾';
+  }
+}
+
+function updateNavBadge() {
+  var p = state.profile || {};
+  var map = {Perro:'🐶',Gato:'🐱',Conejo:'🐰',Pajaro:'🐦',Tortuga:'🐢',Pez:'🐟',Hamster:'🐹',Otro:'🐾'};
+  document.getElementById('activePetName').textContent = p.name || 'Mi mascota';
+  document.getElementById('activePetEmoji').textContent = map[p.species] || '🐾';
+  if (p.photo) {
+    document.getElementById('activePetPhoto').src = p.photo;
+    document.getElementById('activePetPhoto').style.display = 'inline-block';
+    document.getElementById('activePetEmoji').style.display = 'none';
+  } else {
+    document.getElementById('activePetPhoto').style.display = 'none';
+    document.getElementById('activePetEmoji').style.display = 'inline';
+  }
+}
+
+function getAge(b) {
+  if (!b) return '';
+  var birth = new Date(b), now = new Date();
+  var y = now.getFullYear()-birth.getFullYear(), m = now.getMonth()-birth.getMonth();
+  if (m < 0) { y--; m += 12; }
+  if (y > 0) return y + (y===1?' año':' años');
+  if (m > 0) return m + (m===1?' mes':' meses');
+  return 'Recien nacido';
+}
+
+function loadPhoto(event) {
+  var file = event.target.files[0];
+  if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    document.getElementById('avatarImg').src = e.target.result;
+    document.getElementById('avatarImg').style.display = 'block';
+    document.getElementById('avatarEmoji').style.display = 'none';
+    state.profile.photo = e.target.result;
+    updateNavBadge(); save(); toast('Foto guardada');
+  };
+  reader.readAsDataURL(file);
+}
+
+function saveWeight() {
+  var val  = parseFloat(document.getElementById('weightVal').value);
+  var date = document.getElementById('weightDate').value;
+  if (!val || !date) { toast('Completa peso y fecha'); return; }
+  state.weights.push({ val:val, date:date, note:document.getElementById('weightNote').value });
+  state.weights.sort(function(a,b){ return a.date.localeCompare(b.date); });
+  save(); closeModal('weightModal'); renderWeightChart(); updateStats(); updateHero();
+  document.getElementById('weightVal').value='';
+  document.getElementById('weightNote').value='';
+  toast('Peso registrado');
+}
+
+function renderWeightChart() {
+  var chart = document.getElementById('weightChart');
+  if (!state.weights || !state.weights.length) {
+    chart.innerHTML = '<div style="color:var(--mid);font-size:13px;padding:20px;">Sin registros aun</div>';
+    return;
+  }
+  var vals = state.weights.map(function(w){ return w.val; });
+  var max  = Math.max.apply(null, vals);
+  var min  = Math.min.apply(null, vals);
+  var step = (max - min) || 1;
+  var yTop    = Math.ceil((max + step * 0.15) * 10) / 10;
+  var yBottom = Math.max(0, Math.floor((min - step * 0.15) * 10) / 10);
+  var range   = yTop - yBottom || 1;
+  // Eje Y: 5 etiquetas con unidad kg
+  var yLabels = [];
+  for (var yi = 4; yi >= 0; yi--) {
+    yLabels.push(parseFloat((yBottom + (range / 4) * yi).toFixed(1)));
+  }
+  var yAxis = '<div class="chart-y-axis" style="padding-bottom:36px;">'
+    + '<div style="font-size:9px;color:var(--bark);font-weight:700;text-align:right;margin-bottom:4px;">kg</div>'
+    + yLabels.map(function(v){ return '<div class="chart-y-label">'+v+'</div>'; }).join('')
+    + '</div>';
+  // Barras con valor centrado dentro
+  var last = state.weights.slice(-10);
+  var chartH = 160;
+  var bars = last.map(function(w) {
+    var pct = range > 0 ? ((w.val - yBottom) / range) : 1;
+    var h   = Math.max(28, Math.round(pct * (chartH - 16)));
+    var d   = new Date(w.date+'T00:00:00');
+    var lbl = d.toLocaleDateString('es-AR',{day:'2-digit',month:'short'});
+    return '<div class="bar-group">'
+      +'<div class="bar" style="height:'+h+'px;display:flex;align-items:center;justify-content:center;position:relative;">'
+      +'<span style="color:white;font-size:10px;font-weight:700;line-height:1;text-shadow:0 1px 3px rgba(0,0,0,0.4);">'+w.val+' kg</span>'
+      +'</div>'
+      +'<div class="bar-label" style="margin-top:5px;">'+lbl+'</div>'
+      +'</div>';
+  }).join('');
+  chart.innerHTML = yAxis
+    + '<div class="chart-bars-area">'
+    + '<div class="chart-bars">'+bars+'</div>'
+    + '<div style="font-size:10px;color:var(--mid);text-align:center;margin-top:6px;padding-left:8px;font-style:italic;">Fecha de registro</div>'
+    + '</div>';
+}
+
+function saveHealth() {
+  var title = document.getElementById('healthTitle').value;
+  var date  = document.getElementById('healthDate').value;
+  if (!title || !date) { toast('Completa descripcion y fecha'); return; }
+  state.health.push({ type:document.getElementById('healthType').value, title:title, date:date, notes:document.getElementById('healthNotes').value });
+  state.health.sort(function(a,b){ return b.date.localeCompare(a.date); });
+  save(); closeModal('healthModal'); renderHealthLog(); updateStats();
+  document.getElementById('healthTitle').value='';
+  document.getElementById('healthNotes').value='';
+  toast('Registro guardado');
+}
+
+function deleteHealth(i) { state.health.splice(i,1); save(); renderHealthLog(); updateStats(); }
+
+function renderHealthLog() {
+  var list = document.getElementById('healthLog');
+  if (!state.health || !state.health.length) {
+    list.innerHTML = '<li><div class="empty-state"><div class="icon">🏥</div><p>Sin registros medicos.</p></div></li>';
+    return;
+  }
+  var icons = { vaccine:'💉', vet:'🩺', health:'💊', other:'📋' };
+  list.innerHTML = state.health.map(function(h,i) {
+    return '<li class="log-item">'
+      +'<div class="log-dot '+(h.type==='vaccine'?'vaccine':h.type==='vet'?'vet':'health')+'">'+(icons[h.type]||'📋')+'</div>'
+      +'<div class="log-meta"><div class="log-title">'+h.title+'</div>'+(h.notes?'<div class="log-desc">'+h.notes+'</div>':'')+'</div>'
+      +'<div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px"><div class="log-date">'+formatDate(h.date)+'</div>'
+      +'<button class="btn btn-danger" onclick="deleteHealth('+i+')">Eliminar</button></div>'
+      +'</li>';
+  }).join('');
+}
+
+function saveActivity() {
+  var name = document.getElementById('actName').value;
+  var date = document.getElementById('actDate').value;
+  if (!name || !date) { toast('Completa nombre y fecha'); return; }
+  state.activities.push({ type:document.getElementById('actType').value, name:name, date:date, duration:document.getElementById('actDuration').value, notes:document.getElementById('actNotes').value });
+  state.activities.sort(function(a,b){ return b.date.localeCompare(a.date); });
+  save(); closeModal('activityModal'); renderActivities();
+  document.getElementById('actName').value='';
+  document.getElementById('actDuration').value='';
+  document.getElementById('actNotes').value='';
+  toast('Actividad guardada');
+}
+
+function deleteActivity(i) { state.activities.splice(i,1); save(); renderActivities(); }
+
+function renderActivities() {
+  var grid = document.getElementById('activityGrid');
+  if (!state.activities || !state.activities.length) {
+    grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1"><div class="icon">🦮</div><p>Sin actividades registradas todavia.</p></div>';
+    return;
+  }
+  var icons = { paseo:'🦮', juego:'🎾', entrenamiento:'🏋️', otro:'⭐' };
+  grid.innerHTML = state.activities.map(function(a,i) {
+    return '<div class="activity-card">'
+      +'<div class="activity-header"><span class="activity-type type-'+a.type+'">'+(icons[a.type]||'')+' '+cap(a.type)+'</span>'
+      +'<button class="btn btn-danger" onclick="deleteActivity('+i+')">x</button></div>'
+      +'<div class="activity-name">'+a.name+'</div>'
+      +'<div class="activity-detail">'+formatDate(a.date)+(a.duration?' - '+a.duration+' min':'')+'</div>'
+      +(a.notes?'<div class="activity-detail" style="margin-top:6px;font-style:italic;">'+a.notes+'</div>':'')
+      +'</div>';
+  }).join('');
+}
+
+function saveEvent() {
+  var title = document.getElementById('eventTitle').value;
+  var date  = document.getElementById('eventDate').value;
+  if (!title || !date) { toast('Completa descripcion y fecha'); return; }
+  state.events.push({ type:document.getElementById('eventType').value, title:title, date:date, notes:document.getElementById('eventNotes').value });
+  state.events.sort(function(a,b){ return a.date.localeCompare(b.date); });
+  save(); closeModal('eventModal'); renderEvents();
+  document.getElementById('eventTitle').value='';
+  document.getElementById('eventNotes').value='';
+  toast('Evento guardado');
+}
+
+function deleteEvent(i) { state.events.splice(i,1); save(); renderEvents(); }
+
+function renderEvents() {
+  var list = document.getElementById('eventList');
+  if (!state.events || !state.events.length) {
+    list.innerHTML = '<div class="empty-state"><div class="icon">📅</div><p>Sin eventos programados.</p></div>';
+    return;
+  }
+  list.innerHTML = state.events.map(function(e,i) {
+    var d     = new Date(e.date+'T00:00:00');
+    var day   = d.getDate();
+    var month = d.toLocaleDateString('es-AR',{month:'short'}).toUpperCase();
+    return '<div class="upcoming-item">'
+      +'<div class="upcoming-date-box"><div class="upcoming-day">'+day+'</div><div class="upcoming-month">'+month+'</div></div>'
+      +'<div class="upcoming-info"><div class="upcoming-title">'+e.title+'</div><div class="upcoming-sub">'+e.type+(e.notes?' - '+e.notes:'')+'</div></div>'
+      +'<button class="btn btn-danger" onclick="deleteEvent('+i+')">x</button>'
+      +'</div>';
+  }).join('');
+}
+
+function updateStats() {
+  var w = state.weights;
+  document.getElementById('statPeso').textContent = (w && w.length) ? w[w.length-1].val : '—';
+  document.getElementById('statVacunas').textContent = state.health ? state.health.filter(function(h){ return h.type==='vaccine'; }).length : 0;
+  document.getElementById('statVisitas').textContent = state.health ? state.health.filter(function(h){ return h.type==='vet'; }).length : 0;
+}
+
+function openPhotoUploadModal() {
+  document.getElementById('galleryPhotoData').value='';
+  document.getElementById('galleryPhotoDesc').value='';
+  document.getElementById('galleryPhotoDate').value=new Date().toISOString().split('T')[0];
+  document.getElementById('uploadPreviewImg').style.display='none';
+  document.getElementById('uploadDropArea').classList.remove('has-preview');
+  document.getElementById('uploadDropArea').querySelector('.upload-icon').style.display='block';
+  document.getElementById('uploadDropArea').querySelector('.upload-hint').style.display='block';
+  document.getElementById('photoUploadModal').classList.add('open');
+}
+
+function closePhotoUploadModal() { document.getElementById('photoUploadModal').classList.remove('open'); }
+
+function galleryPhotoSelected(event) {
+  var file = event.target.files[0];
+  if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    document.getElementById('galleryPhotoData').value = e.target.result;
+    var img = document.getElementById('uploadPreviewImg');
+    img.src = e.target.result; img.style.display = 'block';
+    var area = document.getElementById('uploadDropArea');
+    area.classList.add('has-preview');
+    area.querySelector('.upload-icon').style.display = 'none';
+    area.querySelector('.upload-hint').style.display = 'none';
+  };
+  reader.readAsDataURL(file);
+}
+
+function saveGalleryPhoto() {
+  var data = document.getElementById('galleryPhotoData').value;
+  if (!data) { toast('Elige una foto primero'); return; }
+  if (!state.photos) state.photos = [];
+  state.photos.unshift({ data:data, desc:document.getElementById('galleryPhotoDesc').value, date:document.getElementById('galleryPhotoDate').value, fav:false, id:Date.now() });
+  save(); closePhotoUploadModal(); renderGallery(); toast('Foto guardada');
+}
+
+function renderGallery() {
+  var grid = document.getElementById('galleryGrid');
+  if (!grid) return;
+  if (!state.photos || !state.photos.length) {
+    grid.innerHTML = '<div class="gallery-empty"><div class="icon">📷</div><p>Todavia no hay fotos.<br>Agrega el primer recuerdo!</p></div>';
+    return;
+  }
+  var sorted = state.photos.slice().sort(function(a,b){ return (b.fav?1:0)-(a.fav?1:0); });
+  grid.innerHTML = sorted.map(function(p) {
+    var orig = -1;
+    for (var i=0; i<state.photos.length; i++) { if (state.photos[i].id===p.id) { orig=i; break; } }
+    return '<div class="gallery-item'+(p.fav?' is-fav':'')+'" onclick="openLightbox('+orig+')">'
+      +'<img src="'+p.data+'" alt="'+(p.desc||'')+'" loading="lazy">'
+      +(p.fav?'<div class="fav-badge">⭐</div>':'')
+      +'<div class="gallery-item-overlay">'
+      +(p.desc?'<div class="gallery-item-desc">'+p.desc+'</div>':'')
+      +(p.date?'<div class="gallery-item-date">'+formatDate(p.date)+'</div>':'')
+      +'</div></div>';
+  }).join('');
+}
+
+function openLightbox(idx) {
+  lightboxIndex = idx;
+  var p = state.photos[idx];
+  document.getElementById('lightboxImg').src = p.data;
+  document.getElementById('lightboxDesc').textContent = p.desc || 'Sin descripcion';
+  document.getElementById('lightboxDate').textContent = p.date ? formatDate(p.date) : '';
+  var btn = document.getElementById('lightboxFavBtn');
+  btn.textContent = p.fav ? 'Quitar favorita' : 'Marcar favorita';
+  btn.classList.toggle('active', !!p.fav);
+  document.getElementById('lightbox').classList.add('open');
+}
+
+function closeLightbox() {
+  document.getElementById('lightbox').classList.remove('open');
+  lightboxIndex = -1;
+}
+
+function toggleFavPhoto() {
+  if (lightboxIndex < 0) return;
+  state.photos[lightboxIndex].fav = !state.photos[lightboxIndex].fav;
+  save(); renderGallery();
+  var p = state.photos[lightboxIndex];
+  var btn = document.getElementById('lightboxFavBtn');
+  btn.textContent = p.fav ? 'Quitar favorita' : 'Marcar favorita';
+  btn.classList.toggle('active', !!p.fav);
+  toast(p.fav ? 'Marcada como favorita' : 'Favorita removida');
+}
+
+function deleteGalleryPhoto() {
+  if (lightboxIndex < 0) return;
+  if (!confirm('Eliminar esta foto?')) return;
+  state.photos.splice(lightboxIndex, 1);
+  save(); renderGallery(); closeLightbox(); toast('Foto eliminada');
+}
+
+function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+
+function formatDate(str) {
+  if (!str) return '';
+  var d = new Date(str+'T00:00:00');
+  return d.toLocaleDateString('es-AR',{day:'2-digit',month:'short',year:'numeric'});
+}
+
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+function toast(msg) {
+  var t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(function(){ t.classList.remove('show'); }, 2500);
+}
+
+document.addEventListener('click', function(e) {
+  if (e.target.classList.contains('modal-overlay')) e.target.classList.remove('open');
+  if (e.target.id === 'lightbox') closeLightbox();
+});
+
+var today = new Date().toISOString().split('T')[0];
+var dates  = document.querySelectorAll('input[type=date]');
+for (var i=0; i<dates.length; i++) { if (!dates[i].value) dates[i].value = today; }
+</script>
+</body>
+</html>
