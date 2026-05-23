@@ -250,18 +250,20 @@ textarea{resize:vertical;min-height:80px;}
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import { getFirestore, doc, setDoc, getDoc, collection, getDocs, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
 
 const FB = {
-  apiKey:"AIzaSyDvytU3JzHKB4eSYIITifeKH29o2J0nZ5c",
-  authDomain:"petpal-9ca01.firebaseapp.com",
-  projectId:"petpal-9ca01",
-  storageBucket:"petpal-9ca01.firebasestorage.app",
-  messagingSenderId:"1007633000670",
-  appId:"1:1007633000670:web:fbcb858a073c9cadb83a4f"
+  apiKey:"AIzaSyD7YpJGIGif-1XwP0w7nOuvJ-Tp2VBMb6k",
+  authDomain:"petpal-70aaa.firebaseapp.com",
+  projectId:"petpal-70aaa",
+  storageBucket:"petpal-70aaa.firebasestorage.app",
+  messagingSenderId:"397691510732",
+  appId:"1:397691510732:web:916822db4b7784c7ff0769"
 };
-const app  = initializeApp(FB);
-const auth = getAuth(app);
-const db   = getFirestore(app);
+const app     = initializeApp(FB);
+const auth    = getAuth(app);
+const db      = getFirestore(app);
+const storage = getStorage(app);
 let fbUser = null;
 let fbPetId = null;
 
@@ -462,6 +464,9 @@ window.openAddPetModal = function() {
   document.getElementById('newPetSpecies').value='';
   document.getElementById('newPetPhotoPreview').style.display='none';
   document.getElementById('newPetPhotoData').value='';
+  document.getElementById('newPetPhotoInput').value='';
+  var btn = document.querySelector('.photo-upload-btn');
+  if (btn) btn.textContent = 'Agregar foto (opcional)';
   document.getElementById('addPetModal').classList.add('open');
 };
 window.closeAddPetModal = function() { document.getElementById('addPetModal').classList.remove('open'); };
@@ -472,8 +477,16 @@ window.newPetLoadPhoto = function(event) {
   var reader = new FileReader();
   reader.onload = function(e) {
     document.getElementById('newPetPhotoData').value = e.target.result;
-    document.getElementById('newPetPhotoPreview').src = e.target.result;
-    document.getElementById('newPetPhotoPreview').style.display = 'block';
+    var img = document.getElementById('newPetPhotoPreview');
+    img.src = e.target.result;
+    img.style.display = 'block';
+    img.style.width = '80px';
+    img.style.height = '80px';
+    img.style.borderRadius = '50%';
+    img.style.objectFit = 'cover';
+    img.style.border = '3px solid var(--bark-light)';
+    var btn = document.querySelector('.photo-upload-btn');
+    if (btn) btn.textContent = '✓ Foto seleccionada';
   };
   reader.readAsDataURL(file);
 };
@@ -484,10 +497,20 @@ window.saveNewPet = async function() {
   var pets = await loadAllPets();
   if (pets.length >= 3) { alert('Ya tienes 3 mascotas.'); return; }
   var petId = 'pet_' + Date.now();
+  var photoUrl = '';
+  var photoInput = document.getElementById('newPetPhotoInput');
+  if (photoInput.files && photoInput.files[0]) {
+    try {
+      var file = photoInput.files[0];
+      var sRef = storageRef(storage, 'users/' + fbUser.uid + '/pets/' + petId + '/profile.jpg');
+      await uploadBytes(sRef, file);
+      photoUrl = await getDownloadURL(sRef);
+    } catch(e) { psToast('Error foto: ' + (e.code || e.message || 'desconocido')); }
+  }
   await savePetProfile(petId, {
     name: name,
     species: document.getElementById('newPetSpecies').value,
-    photo: document.getElementById('newPetPhotoData').value || ''
+    photo: photoUrl
   });
   closeAddPetModal();
   await renderPetSelector();
@@ -506,6 +529,45 @@ function fbErr(code) {
   };
   return m[code] || 'Ocurrio un error.';
 }
+
+window.saveGalleryPhoto = function() {
+  var input = document.getElementById('galleryPhotoInput');
+  if (!input || !input.files || !input.files[0]) { window.toast('Elige una foto primero'); return; }
+  if (!fbUser || !fbPetId) { window.toast('Error: no hay mascota activa'); return; }
+  window.toast('Subiendo foto...');
+  var file = input.files[0];
+  var photoId = Date.now();
+  var sRef = storageRef(storage, 'users/' + fbUser.uid + '/pets/' + fbPetId + '/gallery/' + photoId + '.jpg');
+  uploadBytes(sRef, file).then(function() {
+    return getDownloadURL(sRef);
+  }).then(function(url) {
+    if (!window.state.photos) window.state.photos = [];
+    window.state.photos.unshift({ data:url, desc:document.getElementById('galleryPhotoDesc').value, date:document.getElementById('galleryPhotoDate').value, fav:false, id:photoId });
+    if (window.save) window.save();
+    if (window.closePhotoUploadModal) window.closePhotoUploadModal();
+    if (window.renderGallery) window.renderGallery();
+    window.toast('Foto guardada!');
+  }).catch(function(e) { window.toast('Error: ' + (e.code || e.message || 'desconocido')); });
+};
+
+window.loadPhoto = function(event) {
+  var file = event.target.files[0];
+  if (!file) return;
+  if (!fbUser || !fbPetId) { window.toast('Error: no hay mascota activa'); return; }
+  window.toast('Subiendo foto...');
+  var sRef = storageRef(storage, 'users/' + fbUser.uid + '/pets/' + fbPetId + '/profile.jpg');
+  uploadBytes(sRef, file).then(function() {
+    return getDownloadURL(sRef);
+  }).then(function(url) {
+    document.getElementById('avatarImg').src = url;
+    document.getElementById('avatarImg').style.display = 'block';
+    document.getElementById('avatarEmoji').style.display = 'none';
+    window.state.profile.photo = url;
+    if (window.updateNavBadge) window.updateNavBadge();
+    if (window.save) window.save();
+    window.toast('Foto guardada!');
+  }).catch(function(e) { window.toast('Error: ' + (e.code || e.message || 'desconocido')); });
+};
 </script>
 
 <!-- LOGIN -->
@@ -859,7 +921,7 @@ function switchTab(tab) {
   document.getElementById('loginError').textContent = '';
 }
 
-function showSection(id, btn) {
+window.showSection = function(id, btn) {
   var all = document.getElementsByClassName('app-section');
   for (var i=0; i<all.length; i++) all[i].classList.remove('active');
   var tabs = document.getElementsByClassName('nav-tab');
@@ -869,7 +931,7 @@ function showSection(id, btn) {
   if (btn) btn.classList.add('active');
 }
 
-function save() { if (window.saveToFirestore) saveToFirestore(); }
+window.save = function save() { if (window.saveToFirestore) saveToFirestore(); }
 
 function renderAll() {
   updateHero(); renderWeightChart(); renderHealthLog();
@@ -896,7 +958,7 @@ function fillForm() {
   }
 }
 
-function saveProfile() {
+window.saveProfile = function() {
   state.profile = {
     name:      document.getElementById('petName').value,
     species:   document.getElementById('petSpecies').value,
@@ -942,7 +1004,7 @@ function updateEmoji() {
   }
 }
 
-function updateNavBadge() {
+window.updateNavBadge = function updateNavBadge() {
   var p = state.profile || {};
   var map = {Perro:'🐶',Gato:'🐱',Conejo:'🐰',Pajaro:'🐦',Tortuga:'🐢',Pez:'🐟',Hamster:'🐹',Otro:'🐾'};
   document.getElementById('activePetName').textContent = p.name || 'Mi mascota';
@@ -967,21 +1029,9 @@ function getAge(b) {
   return 'Recien nacido';
 }
 
-function loadPhoto(event) {
-  var file = event.target.files[0];
-  if (!file) return;
-  var reader = new FileReader();
-  reader.onload = function(e) {
-    document.getElementById('avatarImg').src = e.target.result;
-    document.getElementById('avatarImg').style.display = 'block';
-    document.getElementById('avatarEmoji').style.display = 'none';
-    state.profile.photo = e.target.result;
-    updateNavBadge(); save(); toast('Foto guardada');
-  };
-  reader.readAsDataURL(file);
-}
 
-function saveWeight() {
+
+window.saveWeight = function() {
   var val  = parseFloat(document.getElementById('weightVal').value);
   var date = document.getElementById('weightDate').value;
   if (!val || !date) { toast('Completa peso y fecha'); return; }
@@ -1037,7 +1087,7 @@ function renderWeightChart() {
     + '</div>';
 }
 
-function saveHealth() {
+window.saveHealth = function() {
   var title = document.getElementById('healthTitle').value;
   var date  = document.getElementById('healthDate').value;
   if (!title || !date) { toast('Completa descripcion y fecha'); return; }
@@ -1049,7 +1099,7 @@ function saveHealth() {
   toast('Registro guardado');
 }
 
-function deleteHealth(i) { state.health.splice(i,1); save(); renderHealthLog(); updateStats(); }
+window.deleteHealth = function(i) { state.health.splice(i,1); save(); renderHealthLog(); updateStats(); }
 
 function renderHealthLog() {
   var list = document.getElementById('healthLog');
@@ -1068,7 +1118,7 @@ function renderHealthLog() {
   }).join('');
 }
 
-function saveActivity() {
+window.saveActivity = function() {
   var name = document.getElementById('actName').value;
   var date = document.getElementById('actDate').value;
   if (!name || !date) { toast('Completa nombre y fecha'); return; }
@@ -1081,7 +1131,7 @@ function saveActivity() {
   toast('Actividad guardada');
 }
 
-function deleteActivity(i) { state.activities.splice(i,1); save(); renderActivities(); }
+window.deleteActivity = function(i) { state.activities.splice(i,1); save(); renderActivities(); }
 
 function renderActivities() {
   var grid = document.getElementById('activityGrid');
@@ -1101,7 +1151,7 @@ function renderActivities() {
   }).join('');
 }
 
-function saveEvent() {
+window.saveEvent = function() {
   var title = document.getElementById('eventTitle').value;
   var date  = document.getElementById('eventDate').value;
   if (!title || !date) { toast('Completa descripcion y fecha'); return; }
@@ -1113,7 +1163,7 @@ function saveEvent() {
   toast('Evento guardado');
 }
 
-function deleteEvent(i) { state.events.splice(i,1); save(); renderEvents(); }
+window.deleteEvent = function(i) { state.events.splice(i,1); save(); renderEvents(); }
 
 function renderEvents() {
   var list = document.getElementById('eventList');
@@ -1140,8 +1190,9 @@ function updateStats() {
   document.getElementById('statVisitas').textContent = state.health ? state.health.filter(function(h){ return h.type==='vet'; }).length : 0;
 }
 
-function openPhotoUploadModal() {
+window.openPhotoUploadModal = function() {
   document.getElementById('galleryPhotoData').value='';
+  document.getElementById('galleryPhotoInput').value='';
   document.getElementById('galleryPhotoDesc').value='';
   document.getElementById('galleryPhotoDate').value=new Date().toISOString().split('T')[0];
   document.getElementById('uploadPreviewImg').style.display='none';
@@ -1151,9 +1202,9 @@ function openPhotoUploadModal() {
   document.getElementById('photoUploadModal').classList.add('open');
 }
 
-function closePhotoUploadModal() { document.getElementById('photoUploadModal').classList.remove('open'); }
+window.closePhotoUploadModal = function() { document.getElementById('photoUploadModal').classList.remove('open'); }
 
-function galleryPhotoSelected(event) {
+window.galleryPhotoSelected = function(event) {
   var file = event.target.files[0];
   if (!file) return;
   var reader = new FileReader();
@@ -1169,15 +1220,9 @@ function galleryPhotoSelected(event) {
   reader.readAsDataURL(file);
 }
 
-function saveGalleryPhoto() {
-  var data = document.getElementById('galleryPhotoData').value;
-  if (!data) { toast('Elige una foto primero'); return; }
-  if (!state.photos) state.photos = [];
-  state.photos.unshift({ data:data, desc:document.getElementById('galleryPhotoDesc').value, date:document.getElementById('galleryPhotoDate').value, fav:false, id:Date.now() });
-  save(); closePhotoUploadModal(); renderGallery(); toast('Foto guardada');
-}
 
-function renderGallery() {
+
+window.renderGallery = function renderGallery() {
   var grid = document.getElementById('galleryGrid');
   if (!grid) return;
   if (!state.photos || !state.photos.length) {
@@ -1198,7 +1243,7 @@ function renderGallery() {
   }).join('');
 }
 
-function openLightbox(idx) {
+window.openLightbox = function(idx) {
   lightboxIndex = idx;
   var p = state.photos[idx];
   document.getElementById('lightboxImg').src = p.data;
@@ -1210,12 +1255,12 @@ function openLightbox(idx) {
   document.getElementById('lightbox').classList.add('open');
 }
 
-function closeLightbox() {
+window.closeLightbox = function() {
   document.getElementById('lightbox').classList.remove('open');
   lightboxIndex = -1;
 }
 
-function toggleFavPhoto() {
+window.toggleFavPhoto = function() {
   if (lightboxIndex < 0) return;
   state.photos[lightboxIndex].fav = !state.photos[lightboxIndex].fav;
   save(); renderGallery();
@@ -1226,7 +1271,7 @@ function toggleFavPhoto() {
   toast(p.fav ? 'Marcada como favorita' : 'Favorita removida');
 }
 
-function deleteGalleryPhoto() {
+window.deleteGalleryPhoto = function() {
   if (lightboxIndex < 0) return;
   if (!confirm('Eliminar esta foto?')) return;
   state.photos.splice(lightboxIndex, 1);
@@ -1241,10 +1286,10 @@ function formatDate(str) {
   return d.toLocaleDateString('es-AR',{day:'2-digit',month:'short',year:'numeric'});
 }
 
-function openModal(id) { document.getElementById(id).classList.add('open'); }
-function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+window.openModal = function(id) { document.getElementById(id).classList.add('open'); }
+window.closeModal = function(id) { document.getElementById(id).classList.remove('open'); }
 
-function toast(msg) {
+window.toast = function toast(msg) {
   var t = document.getElementById('toast');
   t.textContent = msg; t.classList.add('show');
   setTimeout(function(){ t.classList.remove('show'); }, 2500);
