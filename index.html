@@ -593,6 +593,11 @@ window.loadPhoto = function(event) {
     <div class="login-error" id="loginError"></div>
     <button class="btn-login" id="loginBtn">Ingresar</button>
     <div class="login-footer"><button id="btnReset">Olvidaste tu contrasena?</button></div>
+    <div id="installBanner" style="display:none;margin-top:16px;text-align:center;">
+      <button id="installBtn" style="background:var(--moss);color:white;border:none;border-radius:14px;padding:11px 24px;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;cursor:pointer;width:100%;display:flex;align-items:center;justify-content:center;gap:8px;">
+        📲 Instalar PetPal en tu celular
+      </button>
+    </div>
   </div>
 </div>
 
@@ -1311,6 +1316,36 @@ var dates  = document.querySelectorAll('input[type=date]');
 for (var i=0; i<dates.length; i++) { if (!dates[i].value) dates[i].value = today; }
 </script>
 <script>
+var deferredPrompt = null;
+
+window.addEventListener('beforeinstallprompt', function(e) {
+  e.preventDefault();
+  deferredPrompt = e;
+  document.getElementById('installBanner').style.display = 'block';
+});
+
+document.addEventListener('DOMContentLoaded', function() {
+  var btn = document.getElementById('installBtn');
+  if (btn) {
+    btn.addEventListener('click', function() {
+      if (deferredPrompt) {
+        deferredPrompt.prompt();
+        deferredPrompt.userChoice.then(function(result) {
+          if (result.outcome === 'accepted') {
+            document.getElementById('installBanner').style.display = 'none';
+          }
+          deferredPrompt = null;
+        });
+      }
+    });
+  }
+});
+
+window.addEventListener('appinstalled', function() {
+  document.getElementById('installBanner').style.display = 'none';
+  deferredPrompt = null;
+});
+
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', function() {
     navigator.serviceWorker.register('/petpal/sw.js')
