@@ -254,7 +254,7 @@ textarea{resize:vertical;min-height:80px;}
 <!-- FIREBASE MODULE -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail, GoogleAuthProvider, signInWithPopup } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import { getFirestore, doc, setDoc, getDoc, collection, getDocs, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
 
@@ -272,6 +272,7 @@ const db      = getFirestore(app);
 const storage = getStorage(app);
 let fbUser = null;
 let fbPetId = null;
+let googleAccessToken = null;
 
 const EMOJI = {Perro:'🐶',Gato:'🐱',Conejo:'🐰',Pajaro:'🐦',Tortuga:'🐢',Pez:'🐟',Hamster:'🐹',Otro:'🐾'};
 
@@ -284,10 +285,10 @@ onAuthStateChanged(auth, async function(user) {
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('appScreen').style.display   = 'none';
     document.getElementById('petSelectScreen').style.display = 'flex';
-    document.getElementById('userEmail').textContent = user.email;
+    document.getElementById('userEmail').textContent = user.email || user.displayName || '';
     await renderPetSelector();
   } else {
-    fbUser = null; fbPetId = null;
+    fbUser = null; fbPetId = null; googleAccessToken = null;
     document.getElementById('loginScreen').style.display     = 'flex';
     document.getElementById('petSelectScreen').style.display = 'none';
     document.getElementById('appScreen').style.display       = 'none';
@@ -327,15 +328,30 @@ window.doReset = async function() {
   catch(e) { err.textContent = fbErr(e.code); }
 };
 
+window.doGoogleLogin = async function() {
+  var err = document.getElementById('loginError');
+  err.textContent = '';
+  try {
+    var provider = new GoogleAuthProvider();
+    provider.addScope('https://www.googleapis.com/auth/drive.file');
+    var result = await signInWithPopup(auth, provider);
+    var credential = GoogleAuthProvider.credentialFromResult(result);
+    googleAccessToken = credential ? credential.accessToken : null;
+    window.googleAccessToken = googleAccessToken;
+  } catch(e) {
+    err.textContent = fbErr(e.code) || 'Error al iniciar con Google.';
+  }
+};
+
 window.doLogout = async function() {
   await signOut(auth);
-  fbPetId = null;
+  fbPetId = null; googleAccessToken = null; window.googleAccessToken = null;
   document.getElementById('loginEmail').value='';
   document.getElementById('loginPass').value='';
   document.getElementById('loginError').textContent='';
   document.getElementById('loginBtn').disabled=false;
   document.getElementById('loginBtn').textContent='Ingresar';
-  switchTab('login');
+  if (window.switchTab) window.switchTab('login');
 };
 
 window.goToPetSelector = async function() {
@@ -507,11 +523,8 @@ window.saveNewPet = async function() {
   var photoInput = document.getElementById('newPetPhotoInput');
   if (photoInput.files && photoInput.files[0]) {
     try {
-      var file = photoInput.files[0];
-      var sRef = storageRef(storage, 'users/' + fbUser.uid + '/pets/' + petId + '/profile.jpg');
-      await uploadBytes(sRef, file);
-      photoUrl = await getDownloadURL(sRef);
-    } catch(e) { psToast('Error foto: ' + (e.code || e.message || 'desconocido')); }
+      photoUrl = await uploadToDrive(photoInput.files[0], 'profile_' + petId + '.jpg');
+    } catch(e) { psToast('Error foto: ' + (e.message || 'desconocido')); }
   }
   await savePetProfile(petId, {
     name: name,
@@ -522,6 +535,57 @@ window.saveNewPet = async function() {
   await renderPetSelector();
   psToast('Mascota agregada!');
 };
+
+async function uploadToDrive(file, filename) {
+  var token = window.googleAccessToken;
+  if (!token) throw new Error('No hay sesion de Google. Cerrá sesión e ingresá de nuevo con Google.');
+  // Comprimir imagen antes de subir
+  var compressed = await compressImage(file, 800, 0.75);
+  // Crear carpeta PetPal si no existe y subir
+  var metadata = { name: filename, parents: ['appDataFolder'] };
+  var form = new FormData();
+  form.append('metadata', new Blob([JSON.stringify(metadata)], {type:'application/json'}));
+  form.append('file', compressed);
+  var res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webContentLink,webViewLink', {
+    method: 'POST',
+    headers: { 'Authorization': 'Bearer ' + token },
+    body: form
+  });
+  if (!res.ok) {
+    var err = await res.json();
+    throw new Error(err.error ? err.error.message : 'Error al subir a Drive');
+  }
+  var data = await res.json();
+  // Hacer el archivo público para que se pueda ver
+  await fetch('https://www.googleapis.com/drive/v3/files/' + data.id + '/permissions', {
+    method: 'POST',
+    headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ role: 'reader', type: 'anyone' })
+  });
+  return 'https://drive.google.com/thumbnail?id=' + data.id + '&sz=w400';
+}
+
+function compressImage(file, maxSize, quality) {
+  return new Promise(function(resolve) {
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      var img = new Image();
+      img.onload = function() {
+        var canvas = document.createElement('canvas');
+        var w = img.width, h = img.height;
+        if (w > maxSize || h > maxSize) {
+          if (w > h) { h = Math.round(h * maxSize / w); w = maxSize; }
+          else { w = Math.round(w * maxSize / h); h = maxSize; }
+        }
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        canvas.toBlob(function(blob) { resolve(blob); }, 'image/jpeg', quality);
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
 
 function fbErr(code) {
   var m = {
@@ -536,35 +600,31 @@ function fbErr(code) {
   return m[code] || 'Ocurrio un error.';
 }
 
-window.saveGalleryPhoto = function() {
+window.saveGalleryPhoto = async function() {
   var input = document.getElementById('galleryPhotoInput');
   if (!input || !input.files || !input.files[0]) { window.toast('Elige una foto primero'); return; }
   if (!fbUser || !fbPetId) { window.toast('Error: no hay mascota activa'); return; }
   window.toast('Subiendo foto...');
   var file = input.files[0];
   var photoId = Date.now();
-  var sRef = storageRef(storage, 'users/' + fbUser.uid + '/pets/' + fbPetId + '/gallery/' + photoId + '.jpg');
-  uploadBytes(sRef, file).then(function() {
-    return getDownloadURL(sRef);
-  }).then(function(url) {
+  try {
+    var url = await uploadToDrive(file, 'gallery_' + photoId + '.jpg');
     if (!window.state.photos) window.state.photos = [];
     window.state.photos.unshift({ data:url, desc:document.getElementById('galleryPhotoDesc').value, date:document.getElementById('galleryPhotoDate').value, fav:false, id:photoId });
     if (window.save) window.save();
     if (window.closePhotoUploadModal) window.closePhotoUploadModal();
     if (window.renderGallery) window.renderGallery();
     window.toast('Foto guardada!');
-  }).catch(function(e) { window.toast('Error: ' + (e.code || e.message || 'desconocido')); });
+  } catch(e) { window.toast('Error: ' + (e.message || 'desconocido')); }
 };
 
-window.loadPhoto = function(event) {
+window.loadPhoto = async function(event) {
   var file = event.target.files[0];
   if (!file) return;
   if (!fbUser || !fbPetId) { window.toast('Error: no hay mascota activa'); return; }
   window.toast('Subiendo foto...');
-  var sRef = storageRef(storage, 'users/' + fbUser.uid + '/pets/' + fbPetId + '/profile.jpg');
-  uploadBytes(sRef, file).then(function() {
-    return getDownloadURL(sRef);
-  }).then(function(url) {
+  try {
+    var url = await uploadToDrive(file, 'profile_' + fbPetId + '.jpg');
     document.getElementById('avatarImg').src = url;
     document.getElementById('avatarImg').style.display = 'block';
     document.getElementById('avatarEmoji').style.display = 'none';
@@ -572,7 +632,7 @@ window.loadPhoto = function(event) {
     if (window.updateNavBadge) window.updateNavBadge();
     if (window.save) window.save();
     window.toast('Foto guardada!');
-  }).catch(function(e) { window.toast('Error: ' + (e.code || e.message || 'desconocido')); });
+  } catch(e) { window.toast('Error: ' + (e.message || 'desconocido')); }
 };
 </script>
 
@@ -583,6 +643,16 @@ window.loadPhoto = function(event) {
       <span class="paw">🐾</span>
       <h1>Pet<span>Pal</span></h1>
       <p>El diario de salud de tu mascota</p>
+    </div>
+    <!-- Botón Google -->
+    <button onclick="doGoogleLogin()" style="width:100%;padding:12px;background:white;color:#3c4043;border:1.5px solid #dadce0;border-radius:14px;font-family:'DM Sans',sans-serif;font-size:15px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:16px;transition:all 0.2s;" onmouseover="this.style.background='#f8f9fa'" onmouseout="this.style.background='white'">
+      <svg width="20" height="20" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.08 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-3.59-13.46-8.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+      Continuar con Google
+    </button>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
+      <div style="flex:1;height:1px;background:var(--border);"></div>
+      <span style="font-size:12px;color:var(--mid);">o usá email</span>
+      <div style="flex:1;height:1px;background:var(--border);"></div>
     </div>
     <div class="login-tabs">
       <button class="login-tab active" id="tabLogin" onclick="switchTab('login')">Iniciar sesion</button>
