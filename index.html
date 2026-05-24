@@ -11,6 +11,9 @@
 <meta name="apple-mobile-web-app-title" content="PetPal">
 <link rel="apple-touch-icon" href="icon-192.png">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <style>
 :root {
   --cream:#FAF6F0; --warm:#F2E8D9; --bark:#8B5E3C; --bark-light:#C49A6C;
@@ -149,6 +152,19 @@ textarea{resize:vertical;min-height:80px;}
 .toast{position:fixed;bottom:32px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--dark);color:white;padding:12px 24px;border-radius:100px;font-size:14px;font-weight:500;z-index:300;opacity:0;transition:all 0.3s;}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
 
+/* QR REPORT MODAL */
+.qr-modal-body{display:flex;flex-direction:column;align-items:center;gap:20px;padding:8px 0;}
+.qr-box{background:white;border:3px solid var(--bark-light);border-radius:16px;padding:16px;box-shadow:var(--shadow);}
+.qr-actions{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;width:100%;}
+.qr-link-box{background:var(--cream);border:1.5px solid var(--border);border-radius:10px;padding:10px 14px;font-size:12px;color:var(--mid);word-break:break-all;text-align:center;width:100%;max-width:360px;}
+.btn-share{background:var(--moss);color:white;padding:10px 20px;border-radius:var(--radius-sm);border:none;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;}
+.btn-share:hover{background:#3a6347;}
+.btn-copy-link{background:transparent;border:1.5px solid var(--bark);color:var(--bark);padding:10px 20px;border-radius:var(--radius-sm);font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;cursor:pointer;}
+.btn-copy-link:hover{background:var(--warm);}
+.report-generating{display:flex;flex-direction:column;align-items:center;gap:14px;padding:24px 0;color:var(--mid);}
+.spinner{width:40px;height:40px;border:4px solid var(--border);border-top-color:var(--bark);border-radius:50%;animation:spin 0.8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
 /* LOGIN */
 #loginScreen{display:flex;min-height:100vh;align-items:center;justify-content:center;background:linear-gradient(135deg,var(--dark) 0%,#4a3420 50%,var(--bark) 100%);padding:24px;}
 .login-card{background:white;border-radius:28px;padding:48px 40px;width:100%;max-width:420px;box-shadow:0 32px 80px rgba(0,0,0,0.35);animation:slideUp 0.4s ease;}
@@ -254,7 +270,7 @@ textarea{resize:vertical;min-height:80px;}
 <!-- FIREBASE MODULE -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, linkWithPopup } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import { getFirestore, doc, setDoc, getDoc, collection, getDocs, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
 
@@ -272,32 +288,37 @@ const db      = getFirestore(app);
 const storage = getStorage(app);
 let fbUser = null;
 let fbPetId = null;
+window.fbPetId = null;
 let googleAccessToken = null;
 
 const EMOJI = {Perro:'🐶',Gato:'🐱',Conejo:'🐰',Pajaro:'🐦',Tortuga:'🐢',Pez:'🐟',Hamster:'🐹',Otro:'🐾'};
 
-// Al iniciar siempre cerrar sesión para forzar login
-signOut(auth).catch(function(){});
+// Siempre cerrar sesión al abrir la app para garantizar privacidad
+signOut(auth).then(function() {
+  document.getElementById('loginEmail').value = '';
+  document.getElementById('loginPass').value = '';
+}).catch(function(){});
 
-// Obtener token si venimos de un redirect de Google
-getRedirectResult(auth).then(function(result) {
-  if (result) {
-    var credential = GoogleAuthProvider.credentialFromResult(result);
-    googleAccessToken = credential ? credential.accessToken : null;
-    window.googleAccessToken = googleAccessToken;
-  }
-}).catch(function(e) { console.log('redirect result error:', e); });
+var handlingRedirect = false;
 
 onAuthStateChanged(auth, async function(user) {
+  if (handlingRedirect) return; // esperar a que resuelva el redirect
   if (user) {
     fbUser = user;
+    window.fbUser = user;
+    // Restaurar token de Drive si vino de login con Google
+    if (window._driveTokenBackup) {
+      googleAccessToken = window._driveTokenBackup;
+      window.googleAccessToken = window._driveTokenBackup;
+      window._driveTokenBackup = null;
+    }
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('appScreen').style.display   = 'none';
     document.getElementById('petSelectScreen').style.display = 'flex';
     document.getElementById('userEmail').textContent = user.email || user.displayName || '';
     await renderPetSelector();
   } else {
-    fbUser = null; fbPetId = null; googleAccessToken = null;
+    fbUser = null; fbPetId = null; window.fbPetId = null; googleAccessToken = null;
     document.getElementById('loginScreen').style.display     = 'flex';
     document.getElementById('petSelectScreen').style.display = 'none';
     document.getElementById('appScreen').style.display       = 'none';
@@ -344,16 +365,11 @@ window.doGoogleLogin = async function() {
     var provider = new GoogleAuthProvider();
     provider.addScope('https://www.googleapis.com/auth/drive.file');
     provider.addScope('https://www.googleapis.com/auth/drive');
-    // Usar redirect en mobile, popup en desktop
-    var isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-    if (isMobile) {
-      await signInWithRedirect(auth, provider);
-    } else {
-      var result = await signInWithPopup(auth, provider);
-      var credential = GoogleAuthProvider.credentialFromResult(result);
-      googleAccessToken = credential ? credential.accessToken : null;
-      window.googleAccessToken = googleAccessToken;
-    }
+    var result = await signInWithPopup(auth, provider);
+    var credential = GoogleAuthProvider.credentialFromResult(result);
+    googleAccessToken = credential ? credential.accessToken : null;
+    window.googleAccessToken = googleAccessToken;
+    window._driveTokenBackup = googleAccessToken; // backup para sobrevivir el signOut
   } catch(e) {
     err.textContent = (e.code || e.message || JSON.stringify(e));
   }
@@ -361,7 +377,7 @@ window.doGoogleLogin = async function() {
 
 window.doLogout = async function() {
   await signOut(auth);
-  fbPetId = null; googleAccessToken = null; window.googleAccessToken = null;
+  fbPetId = null; window.fbPetId = null; googleAccessToken = null; window.googleAccessToken = null;
   document.getElementById('loginEmail').value='';
   document.getElementById('loginPass').value='';
   document.getElementById('loginError').textContent='';
@@ -370,9 +386,14 @@ window.doLogout = async function() {
   if (window.switchTab) window.switchTab('login');
 };
 
+// Exponer al scope global para conectarDriveYGenerar
+window._fbAuth = auth;
+window._fbSignInWithPopup = signInWithPopup;
+window._fbLinkWithPopup = linkWithPopup;
+window._fbGoogleAuthProvider = GoogleAuthProvider;
+
 window.goToPetSelector = async function() {
-  fbPetId = null;
-  document.getElementById('appScreen').style.display='none';
+  fbPetId = null; window.fbPetId = null;
   document.getElementById('petSelectScreen').style.display='flex';
   await renderPetSelector();
 };
@@ -389,7 +410,7 @@ window.saveToFirestore = async function() {
 
 window.loadPetFromFirestore = async function(petId) {
   if (!fbUser) return;
-  fbPetId = petId;
+  fbPetId = petId; window.fbPetId = petId;
   try {
     // Mutar el objeto en lugar de reemplazarlo (var state = window.state debe seguir apuntando al mismo objeto)
     var snap = await getDoc(doc(db,'users',fbUser.uid,'pets',petId));
@@ -425,6 +446,37 @@ window.loadPetFromFirestore = async function(petId) {
     var todayStr = new Date().toISOString().split('T')[0];
     var dateInputs = document.querySelectorAll('input[type=date]');
     for (var di=0; di<dateInputs.length; di++) dateInputs[di].value = todayStr;
+    // Limpiar campos de modales (peso, salud, actividades, eventos, fotos)
+    var clearFields = [
+      'weightVal','weightNote',
+      'healthTitle','healthNotes',
+      'actName','actDuration','actNotes',
+      'eventTitle','eventNotes',
+      'galleryPhotoDesc'
+    ];
+    for (var ci=0; ci<clearFields.length; ci++) {
+      var el = document.getElementById(clearFields[ci]);
+      if (el) el.value = '';
+    }
+    // Resetear selects de modales a su valor por defecto
+    var resetSelects = ['healthType','actType','eventType'];
+    for (var ri=0; ri<resetSelects.length; ri++) {
+      var sel = document.getElementById(resetSelects[ri]);
+      if (sel) sel.selectedIndex = 0;
+    }
+    // Limpiar PDF de salud
+    window._healthPdfFile = null;
+    var pdfInput = document.getElementById('healthPdfInput');
+    if (pdfInput) pdfInput.value = '';
+    var pdfLabel = document.getElementById('healthPdfLabel');
+    if (pdfLabel) pdfLabel.textContent = 'Toca para seleccionar un PDF';
+    var pdfBlock = document.getElementById('healthPdfBlock');
+    if (pdfBlock) pdfBlock.style.display = 'none';
+    // Limpiar preview de foto de galería si existe
+    var galleryDrop = document.getElementById('galleryDropArea');
+    if (galleryDrop) { galleryDrop.classList.remove('has-preview'); galleryDrop.innerHTML = '<div class="upload-icon">📷</div><div class="upload-hint">Toca para elegir una foto</div>'; }
+    var galleryInput = document.getElementById('galleryPhotoInput');
+    if (galleryInput) galleryInput.value = '';
   } catch(e) { console.error(e); }
 };
 
@@ -553,7 +605,7 @@ window.saveNewPet = async function() {
   psToast('Mascota agregada!');
 };
 
-async function getPetPalFolderId(token) {
+window.getPetPalFolderId = async function getPetPalFolderId(token) {
   // Buscar si ya existe la carpeta PetPal
   var res = await fetch(
     "https://www.googleapis.com/drive/v3/files?q=name%3D'PetPal'%20and%20mimeType%3D'application%2Fvnd.google-apps.folder'%20and%20trashed%3Dfalse&fields=files(id,name)",
@@ -571,7 +623,7 @@ async function getPetPalFolderId(token) {
   return folder.id;
 }
 
-async function uploadToDrive(file, filename) {
+window.uploadToDrive = async function uploadToDrive(file, filename) {
   var token = window.googleAccessToken;
   if (!token) {
     window.toast('Cerrá sesión e ingresá de nuevo con Google para subir fotos.');
@@ -702,8 +754,8 @@ window.loadPhoto = async function(event) {
       <button class="login-tab active" id="tabLogin" onclick="switchTab('login')">Iniciar sesion</button>
       <button class="login-tab" id="tabRegister" onclick="switchTab('register')">Crear cuenta</button>
     </div>
-    <div class="field-block"><label>Correo electronico</label><input type="text" id="loginEmail" placeholder="tu@correo.com"></div>
-    <div class="field-block"><label>Contrasena</label><input type="password" id="loginPass" placeholder="••••••••"></div>
+    <div class="field-block"><label>Correo electronico</label><input type="text" id="loginEmail" placeholder="tu@correo.com" autocomplete="off"></div>
+    <div class="field-block"><label>Contrasena</label><input type="password" id="loginPass" placeholder="••••••••" autocomplete="new-password"></div>
     <div class="login-error" id="loginError"></div>
     <button class="btn-login" id="loginBtn">Ingresar</button>
     <div class="login-footer"><button id="btnReset">Olvidaste tu contrasena?</button></div>
@@ -787,6 +839,11 @@ window.loadPhoto = async function(event) {
 <div class="app-section active" id="section-perfil">
   <p class="page-title">Mi mascota</p>
   <p class="page-subtitle">Toda la info en un solo lugar</p>
+  <div style="display:flex;justify-content:flex-end;margin-bottom:16px;">
+    <button class="btn btn-primary" onclick="generarReporteQR()" id="btnGenerarQR" style="background:var(--moss);gap:8px;">
+      <span>📄</span> Generar reporte QR
+    </button>
+  </div>
   <div class="profile-hero" id="profileHero">
     <div class="avatar-ring" onclick="document.getElementById('photoInput').click()">
       <span id="avatarEmoji">🐾</span>
@@ -917,7 +974,7 @@ window.loadPhoto = async function(event) {
   <div class="modal">
     <div class="modal-title">🩺 Registro medico</div>
     <div class="field-block"><label>Tipo</label>
-      <select id="healthType">
+      <select id="healthType" onchange="toggleHealthPdf()">
         <option value="vaccine">Vacuna</option>
         <option value="vet">Visita al veterinario</option>
         <option value="health">Medicamento</option>
@@ -927,8 +984,16 @@ window.loadPhoto = async function(event) {
     <div class="field-block"><label>Descripcion</label><input type="text" id="healthTitle" placeholder="Ej: Vacuna antirrabica..."></div>
     <div class="field-block"><label>Fecha</label><input type="date" id="healthDate"></div>
     <div class="field-block"><label>Notas adicionales</label><textarea id="healthNotes" placeholder="Detalles, proxima dosis..."></textarea></div>
+    <div class="field-block" id="healthPdfBlock" style="display:none;">
+      <label>Adjuntar PDF (opcional)</label>
+      <div id="healthPdfArea" style="border:2px dashed var(--bark-light);border-radius:12px;padding:18px;text-align:center;cursor:pointer;background:var(--cream);transition:all 0.2s;" onclick="document.getElementById('healthPdfInput').click()">
+        <div style="font-size:28px;margin-bottom:6px;">📎</div>
+        <div id="healthPdfLabel" style="font-size:13px;color:var(--mid);">Toca para seleccionar un PDF</div>
+      </div>
+      <input type="file" id="healthPdfInput" accept="application/pdf" style="display:none" onchange="healthPdfSelected(event)">
+    </div>
     <div class="modal-actions">
-      <button class="btn btn-ghost" onclick="closeModal('healthModal')">Cancelar</button>
+      <button class="btn btn-ghost" onclick="closeHealthModal()">Cancelar</button>
       <button class="btn btn-primary" onclick="saveHealth()">Guardar</button>
     </div>
   </div>
@@ -1015,6 +1080,22 @@ window.loadPhoto = async function(event) {
 </div>
 
 <div class="toast" id="toast"></div>
+
+<!-- MODAL QR REPORTE -->
+<div class="modal-overlay" id="qrReportModal">
+  <div class="modal" style="max-width:520px;">
+    <div class="modal-title">📄 Reporte de mascota</div>
+    <div id="qrReportContent">
+      <div class="report-generating" id="qrGenerating">
+        <div class="spinner"></div>
+        <span id="qrStatusMsg">Generando PDF...</span>
+      </div>
+    </div>
+    <div class="modal-actions" style="margin-top:16px;">
+      <button class="btn btn-ghost" onclick="closeModal('qrReportModal')">Cerrar</button>
+    </div>
+  </div>
+</div>
 </div><!-- /appScreen -->
 
 <script>
@@ -1212,20 +1293,118 @@ function renderWeightChart() {
     + '</div>';
 }
 
-window.saveHealth = function() {
+window.closeHealthModal = function() {
+  closeModal('healthModal');
+  document.getElementById('healthTitle').value = '';
+  document.getElementById('healthNotes').value = '';
+  document.getElementById('healthType').selectedIndex = 0;
+  document.getElementById('healthPdfInput').value = '';
+  document.getElementById('healthPdfLabel').textContent = 'Toca para seleccionar un PDF';
+  document.getElementById('healthPdfArea').style.borderColor = 'var(--bark-light)';
+  document.getElementById('healthPdfArea').style.borderStyle = 'dashed';
+  document.getElementById('healthPdfBlock').style.display = 'none';
+  window._healthPdfFile = null;
+};
+
+window.toggleHealthPdf = function() {
+  var type = document.getElementById('healthType').value;
+  var block = document.getElementById('healthPdfBlock');
+  if (type === 'other') {
+    block.style.display = 'block';
+  } else {
+    block.style.display = 'none';
+    // Limpiar el PDF si se cambia de tipo
+    document.getElementById('healthPdfInput').value = '';
+    document.getElementById('healthPdfLabel').textContent = 'Toca para seleccionar un PDF';
+    document.getElementById('healthPdfArea').style.borderColor = 'var(--bark-light)';
+    window._healthPdfFile = null;
+  }
+};
+
+window.healthPdfSelected = function(event) {
+  var file = event.target.files[0];
+  if (!file) return;
+  if (file.type !== 'application/pdf') { toast('Solo se permiten archivos PDF'); return; }
+  if (file.size > 10 * 1024 * 1024) { toast('El PDF no puede superar 10 MB'); return; }
+  window._healthPdfFile = file;
+  document.getElementById('healthPdfLabel').innerHTML = '✅ <strong>' + file.name + '</strong><br><span style="font-size:11px;">(' + (file.size/1024).toFixed(0) + ' KB)</span>';
+  document.getElementById('healthPdfArea').style.borderColor = 'var(--moss)';
+  document.getElementById('healthPdfArea').style.borderStyle = 'solid';
+};
+
+window.saveHealth = async function() {
   var title = document.getElementById('healthTitle').value;
   var date  = document.getElementById('healthDate').value;
   if (!title || !date) { toast('Completa descripcion y fecha'); return; }
-  state.health.push({ type:document.getElementById('healthType').value, title:title, date:date, notes:document.getElementById('healthNotes').value });
+  var type = document.getElementById('healthType').value;
+  var entry = { type:type, title:title, date:date, notes:document.getElementById('healthNotes').value };
+
+  // Si es "otro" y hay un PDF seleccionado, subirlo a Drive
+  if (type === 'other' && window._healthPdfFile) {
+    var btn = document.querySelector('#healthModal .btn-primary');
+    if (btn) { btn.disabled = true; btn.textContent = 'Subiendo PDF...'; }
+    toast('Subiendo PDF...');
+    try {
+      var token = window.googleAccessToken;
+      if (!token) {
+        toast('Iniciá sesión con Google para subir archivos.');
+        if (btn) { btn.disabled = false; btn.textContent = 'Guardar'; }
+        return;
+      }
+      var folderId = await getPetPalFolderId(token);
+      var pdfFilename = 'health_' + window.fbPetId + '_' + Date.now() + '.pdf';
+      var metadata = { name: pdfFilename, parents: [folderId] };
+      var form = new FormData();
+      form.append('metadata', new Blob([JSON.stringify(metadata)], {type:'application/json'}));
+      form.append('file', window._healthPdfFile);
+      var res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id', {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + token },
+        body: form
+      });
+      if (!res.ok) throw new Error('Error al subir PDF');
+      var data = await res.json();
+      // Hacer el archivo público (lectura)
+      await fetch('https://www.googleapis.com/drive/v3/files/' + data.id + '/permissions', {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role: 'reader', type: 'anyone' })
+      });
+      entry.pdfUrl = 'https://drive.google.com/file/d/' + data.id + '/view';
+      entry.pdfName = window._healthPdfFile.name;
+      entry.pdfDriveId = data.id;
+      if (btn) { btn.disabled = false; btn.textContent = 'Guardar'; }
+    } catch(e) {
+      toast('Error al subir el PDF: ' + (e.message || 'desconocido'));
+      if (btn) { btn.disabled = false; btn.textContent = 'Guardar'; }
+      return;
+    }
+  }
+
+  state.health.push(entry);
   state.health.sort(function(a,b){ return b.date.localeCompare(a.date); });
   save(); closeModal('healthModal'); renderHealthLog(); updateStats();
   document.getElementById('healthTitle').value='';
   document.getElementById('healthNotes').value='';
+  document.getElementById('healthPdfInput').value='';
+  document.getElementById('healthPdfLabel').textContent = 'Toca para seleccionar un PDF';
+  document.getElementById('healthPdfArea').style.borderColor = 'var(--bark-light)';
+  document.getElementById('healthPdfArea').style.borderStyle = 'dashed';
+  document.getElementById('healthPdfBlock').style.display = 'none';
+  document.getElementById('healthType').selectedIndex = 0;
+  window._healthPdfFile = null;
   toast('Registro guardado');
 }
 
 window.deleteHealth = function(i) {
   if (!confirm('¿Está seguro que desea eliminar este registro?')) return;
+  var entry = state.health[i];
+  if (entry && entry.pdfDriveId && window.googleAccessToken) {
+    fetch('https://www.googleapis.com/drive/v3/files/' + entry.pdfDriveId, {
+      method: 'DELETE',
+      headers: { 'Authorization': 'Bearer ' + window.googleAccessToken }
+    }).catch(function(e) { console.log('Error borrando PDF de Drive:', e); });
+  }
   state.health.splice(i,1); save(); renderHealthLog(); updateStats();
 }
 
@@ -1238,9 +1417,12 @@ function renderHealthLog() {
   var icons = { vaccine:'💉', vet:'🩺', health:'💊', other:'📋' };
   var labels = { vaccine:'Vacuna', vet:'Veterinario', health:'Medicamento', other:'Otro' };
   var rows = state.health.map(function(h,i) {
+    var pdfLink = h.pdfUrl
+      ? ' <a href="'+h.pdfUrl+'" target="_blank" style="display:inline-flex;align-items:center;gap:4px;background:#FEF3C7;color:#92400E;border:1px solid #F59E0B;border-radius:6px;padding:2px 8px;font-size:11px;font-weight:700;text-decoration:none;margin-left:6px;">📎 PDF</a>'
+      : '';
     return '<tr>'
       +'<td style="padding:10px 8px;border-bottom:1px solid var(--border);">'+(icons[h.type]||'📋')+' '+(labels[h.type]||'Otro')+'</td>'
-      +'<td style="padding:10px 8px;border-bottom:1px solid var(--border);font-weight:600;">'+h.title+'</td>'
+      +'<td style="padding:10px 8px;border-bottom:1px solid var(--border);font-weight:600;">'+h.title+pdfLink+'</td>'
       +'<td style="padding:10px 8px;border-bottom:1px solid var(--border);color:var(--mid);font-size:13px;">'+(h.notes||'-')+'</td>'
       +'<td style="padding:10px 8px;border-bottom:1px solid var(--border);white-space:nowrap;font-size:13px;">'+formatDate(h.date)+'</td>'
       +'<td style="padding:10px 8px;border-bottom:1px solid var(--border);text-align:right;">'
@@ -1467,6 +1649,401 @@ window.deleteGalleryPhoto = function() {
 
 function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
 
+// ===================== REPORTE PDF + QR =====================
+
+window.generarReporteQR = async function() {
+  if (!window.googleAccessToken) {
+    openModal('qrReportModal');
+    var content = document.getElementById('qrReportContent');
+    content.innerHTML =
+      '<div style="text-align:center;padding:16px 0;">'
+      + '<div style="font-size:40px;margin-bottom:12px;">📂</div>'
+      + '<p style="font-weight:600;font-size:15px;margin-bottom:8px;">Conectá Google Drive</p>'
+      + '<p style="font-size:13px;color:var(--mid);margin-bottom:20px;">El reporte se sube a tu Drive para generar el QR compartible. Solo necesitás autorizar una vez.</p>'
+      + '<button onclick="conectarDriveYGenerar()" style="background:white;color:#3c4043;border:1.5px solid #dadce0;border-radius:12px;font-family:\'DM Sans\',sans-serif;font-size:14px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:10px;padding:11px 22px;margin-bottom:8px;">'
+      + '<svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.08 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-3.59-13.46-8.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>'
+      + 'Conectar con Google Drive</button>'
+      + '</div>';
+    return;
+  }
+  openModal('qrReportModal');
+  await ejecutarGeneracionReporte();
+};
+
+window.conectarDriveYGenerar = async function() {
+  var content = document.getElementById('qrReportContent');
+  content.innerHTML = '<div class="report-generating"><div class="spinner"></div><span>Conectando con Google...</span></div>';
+  try {
+    var provider = new window._fbGoogleAuthProvider();
+    provider.addScope('https://www.googleapis.com/auth/drive.file');
+    provider.addScope('https://www.googleapis.com/auth/drive');
+    if (window.fbUser && window.fbUser.email) {
+      provider.setCustomParameters({ login_hint: window.fbUser.email });
+    }
+    var result;
+    // Si hay usuario activo, vincular con Google para obtener el token sin romper la sesión
+    if (window.fbUser) {
+      try {
+        result = await window._fbLinkWithPopup(window.fbUser, provider);
+      } catch(linkErr) {
+        // Si ya está vinculado o falla el link, intentar con signInWithPopup
+        result = await window._fbSignInWithPopup(window._fbAuth, provider);
+      }
+    } else {
+      result = await window._fbSignInWithPopup(window._fbAuth, provider);
+    }
+    var credential = window._fbGoogleAuthProvider.credentialFromResult(result);
+    window.googleAccessToken = credential ? credential.accessToken : null;
+    if (!window.googleAccessToken) throw new Error('No se pudo obtener el token de Drive');
+    await ejecutarGeneracionReporte();
+  } catch(e) {
+    if (e.code === 'auth/popup-closed-by-user' || e.code === 'auth/cancelled-popup-request') {
+      content.innerHTML = '<div style="text-align:center;padding:24px;color:var(--mid);"><div style="font-size:36px;margin-bottom:10px;">👋</div><p style="font-weight:600;">Cancelado</p><p style="font-size:13px;margin-top:8px;">Cerraste la ventana de Google. Podés intentarlo de nuevo.</p><br><button onclick="conectarDriveYGenerar()" class="btn btn-primary">Reintentar</button></div>';
+    } else {
+      content.innerHTML = '<div style="text-align:center;padding:24px;color:var(--red);"><div style="font-size:36px;margin-bottom:10px;">⚠️</div><p style="font-weight:600;">No se pudo conectar</p><p style="font-size:13px;margin-top:8px;color:var(--mid);">' + (e.message || 'Error desconocido') + '</p></div>';
+    }
+  }
+};
+
+async function ejecutarGeneracionReporte() {
+  var content = document.getElementById('qrReportContent');
+  content.innerHTML = '<div class="report-generating"><div class="spinner"></div><span id="qrStatusMsg">Generando PDF...</span></div>';
+  try {
+    var pdfBlob = await generarPDF();
+    document.getElementById('qrStatusMsg').textContent = 'Subiendo a Google Drive...';
+    var petName = (state.profile && state.profile.name) ? state.profile.name : 'mascota';
+    var filename = 'Reporte_' + petName.replace(/\s+/g,'_') + '_' + new Date().toISOString().slice(0,10) + '.pdf';
+    var driveResult = await subirPDFaDrive(pdfBlob, filename);
+    document.getElementById('qrStatusMsg').textContent = 'Generando QR...';
+    var shareUrl = 'https://drive.google.com/file/d/' + driveResult.id + '/view?usp=sharing';
+    mostrarModalQR(shareUrl, petName, driveResult.id);
+  } catch(e) {
+    content.innerHTML = '<div style="text-align:center;padding:24px;color:var(--red);"><div style="font-size:36px;margin-bottom:10px;">⚠️</div><p style="font-weight:600;">Error generando el reporte</p><p style="font-size:13px;margin-top:8px;color:var(--mid);">' + (e.message || 'Error desconocido') + '</p></div>';
+  }
+}
+
+function mostrarModalQR(url, petName, driveId) {
+  var content = document.getElementById('qrReportContent');
+  content.innerHTML =
+    '<div class="qr-modal-body">'
+    + '<p style="font-size:14px;color:var(--mid);text-align:center;">Escaneá el QR para abrir el reporte de <strong>' + (petName||'tu mascota') + '</strong></p>'
+    + '<div class="qr-box"><div id="qrCanvas"></div></div>'
+    + '<div class="qr-link-box" id="qrLinkText">' + url + '</div>'
+    + '<div class="qr-actions">'
+    + '<button class="btn-share" onclick="compartirReporte(\'' + url + '\',\'' + (petName||'Mascota') + '\')">🔗 Compartir</button>'
+    + '<button class="btn-copy-link" onclick="copiarLinkReporte(\'' + url + '\')">📋 Copiar link</button>'
+    + '<button class="btn btn-primary" onclick="descargarQRImagen(\'' + (petName||'mascota') + '\')">⬇️ Guardar QR</button>'
+    + '</div>'
+    + '</div>';
+
+  // Generar QR
+  setTimeout(function() {
+    var qrDiv = document.getElementById('qrCanvas');
+    if (qrDiv && window.QRCode) {
+      new QRCode(qrDiv, {
+        text: url,
+        width: 200,
+        height: 200,
+        colorDark: '#2C2416',
+        colorLight: '#ffffff',
+        correctLevel: QRCode.CorrectLevel.M
+      });
+    }
+  }, 100);
+}
+
+window.compartirReporte = function(url, petName) {
+  if (navigator.share) {
+    navigator.share({
+      title: 'Reporte de ' + petName,
+      text: 'Historial completo de ' + petName + ' generado con PetPal',
+      url: url
+    }).catch(function(){});
+  } else {
+    copiarLinkReporte(url);
+  }
+};
+
+window.copiarLinkReporte = function(url) {
+  navigator.clipboard.writeText(url).then(function() {
+    toast('Link copiado al portapapeles!');
+  }).catch(function() {
+    toast('No se pudo copiar. Copialo manualmente.');
+  });
+};
+
+window.descargarQRImagen = function(petName) {
+  var canvas = document.querySelector('#qrCanvas canvas');
+  if (!canvas) { toast('El QR aún no está listo'); return; }
+  var link = document.createElement('a');
+  link.download = 'QR_' + petName.replace(/\s+/g,'_') + '.png';
+  link.href = canvas.toDataURL('image/png');
+  link.click();
+  toast('QR descargado!');
+};
+
+async function subirPDFaDrive(blob, filename) {
+  var token = window.googleAccessToken;
+  if (!token) throw new Error('Sin token de Google');
+  // Obtener/crear carpeta PetPal
+  var folderId = await getPetPalFolderIdReport(token);
+  var metadata = { name: filename, parents: [folderId], mimeType: 'application/pdf' };
+  var form = new FormData();
+  form.append('metadata', new Blob([JSON.stringify(metadata)], {type:'application/json'}));
+  form.append('file', blob);
+  var res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name', {
+    method: 'POST',
+    headers: { 'Authorization': 'Bearer ' + token },
+    body: form
+  });
+  if (!res.ok) {
+    var err = await res.json();
+    throw new Error(err.error ? err.error.message : 'Error subiendo PDF');
+  }
+  var data = await res.json();
+  // Hacer público
+  await fetch('https://www.googleapis.com/drive/v3/files/' + data.id + '/permissions', {
+    method: 'POST',
+    headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ role: 'reader', type: 'anyone' })
+  });
+  return data;
+}
+
+async function getPetPalFolderIdReport(token) {
+  var res = await fetch(
+    "https://www.googleapis.com/drive/v3/files?q=name%3D'PetPal'%20and%20mimeType%3D'application%2Fvnd.google-apps.folder'%20and%20trashed%3Dfalse&fields=files(id,name)",
+    { headers: { 'Authorization': 'Bearer ' + token } }
+  );
+  var data = await res.json();
+  if (data.files && data.files.length > 0) return data.files[0].id;
+  var createRes = await fetch('https://www.googleapis.com/drive/v3/files', {
+    method: 'POST',
+    headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: 'PetPal', mimeType: 'application/vnd.google-apps.folder' })
+  });
+  var folder = await createRes.json();
+  return folder.id;
+}
+
+function generarPDF() {
+  return new Promise(function(resolve, reject) {
+    try {
+      var { jsPDF } = window.jspdf;
+      var doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      var p = state.profile || {};
+      var pageW = 210;
+      var margin = 18;
+      var contentW = pageW - margin * 2;
+      var y = 0;
+
+      // ---- HEADER ----
+      doc.setFillColor(44, 36, 22);
+      doc.rect(0, 0, pageW, 38, 'F');
+      doc.setTextColor(250, 246, 240);
+      doc.setFontSize(22);
+      doc.setFont('helvetica', 'bold');
+      doc.text('PetPal', margin, 16);
+      doc.setFontSize(11);
+      doc.setFont('helvetica', 'normal');
+      doc.text('Reporte de mascota', margin, 24);
+      var fechaGen = new Date().toLocaleDateString('es-AR', {day:'2-digit',month:'long',year:'numeric'});
+      doc.setFontSize(9);
+      doc.text('Generado el ' + fechaGen, pageW - margin, 24, { align: 'right' });
+      y = 48;
+
+      // ---- NOMBRE + DATOS PRINCIPALES ----
+      doc.setTextColor(44, 36, 22);
+      doc.setFontSize(20);
+      doc.setFont('helvetica', 'bold');
+      doc.text(p.name || 'Sin nombre', margin, y);
+      y += 7;
+      doc.setFontSize(11);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(107, 87, 68);
+      var sub = [p.species, p.breed, p.birth ? getAge(p.birth) : ''].filter(Boolean).join('  •  ');
+      if (sub) { doc.text(sub, margin, y); y += 6; }
+      y += 4;
+
+      // ---- DATOS BASICOS ----
+      var basicData = [
+        ['Especie', p.species || '-'],
+        ['Raza', p.breed || '-'],
+        ['Fecha de nac.', p.birth ? formatDate(p.birth) : '-'],
+        ['Sexo', p.sex || '-'],
+        ['Color / Pelaje', p.color || '-'],
+        ['Castrado/a', p.castrated || '-'],
+        ['Microchip', p.chip || '-'],
+        ['Veterinario', p.vet || '-'],
+        ['Tel. Veterinario', p.vetPhone || '-'],
+      ];
+      if (p.allergies) basicData.push(['Alergias / condiciones', p.allergies]);
+
+      doc.autoTable({
+        startY: y,
+        head: [['Datos básicos', '']],
+        body: basicData,
+        theme: 'grid',
+        headStyles: { fillColor: [139, 94, 60], textColor: 255, fontStyle: 'bold', fontSize: 11 },
+        bodyStyles: { fontSize: 10, textColor: [44, 36, 22] },
+        columnStyles: { 0: { fontStyle: 'bold', cellWidth: 55, fillColor: [242, 232, 217] }, 1: { cellWidth: contentW - 55 } },
+        margin: { left: margin, right: margin },
+        styles: { cellPadding: 4 }
+      });
+      y = doc.lastAutoTable.finalY + 10;
+
+      // ---- HISTORIAL DE SALUD ----
+      if (state.health && state.health.length) {
+        var healthLabels = { vaccine: 'Vacuna', vet: 'Veterinario', health: 'Medicamento', other: 'Otro' };
+        var healthRows = state.health.map(function(h) {
+          var detalle = h.notes ? h.notes + (h.date ? '\n' + formatDate(h.date) : '') : formatDate(h.date);
+          if (h.pdfUrl) { detalle += '\n[PDF adjunto]'; }
+          return [healthLabels[h.type] || 'Otro', h.title, detalle];
+        });
+        // Funcion para limpiar nombre de archivo (sin emojis ni caracteres especiales)
+        function sanitizePdfName(name) {
+          if (!name) return 'Ver PDF';
+          var s = name.normalize('NFD').replace(/[\u0300-\u036f]/g, ''); // quitar tildes
+          s = s.replace(/[^\x20-\x7E]/g, '');  // solo ASCII imprimible
+          s = s.trim();
+          return s.length > 30 ? s.substring(0, 28) + '...' : (s || 'Ver PDF');
+        }
+        doc.autoTable({
+          startY: y,
+          head: [['Historial medico', '', '']],
+          body: healthRows,
+          theme: 'striped',
+          headStyles: { fillColor: [74, 124, 89], textColor: 255, fontStyle: 'bold', fontSize: 11 },
+          bodyStyles: { fontSize: 10, textColor: [44, 36, 22] },
+          columnStyles: { 0: { cellWidth: 32 }, 1: { cellWidth: 70 }, 2: { cellWidth: contentW - 102 } },
+          margin: { left: margin, right: margin },
+          styles: { cellPadding: 4 },
+          didDrawCell: function(data) {
+            if (data.section === 'body' && data.column.index === 2) {
+              var h = state.health[data.row.index];
+              if (h && h.pdfUrl) {
+                var lines = data.cell.text;
+                var lastLine = lines[lines.length - 1];
+                if (lastLine && lastLine.indexOf('[PDF adjunto]') !== -1) {
+                  var linkY = data.cell.y + data.cell.height - 4.5;
+                  doc.setTextColor(74, 124, 89);
+                  doc.setFontSize(9);
+                  doc.textWithLink('[PDF] ' + sanitizePdfName(h.pdfName), data.cell.x + 2, linkY, { url: h.pdfUrl });
+                  doc.setTextColor(44, 36, 22);
+                  doc.setFontSize(10);
+                }
+              }
+            }
+          }
+        });
+        y = doc.lastAutoTable.finalY + 10;
+
+        // ---- SECCIÓN DOCUMENTOS ADJUNTOS ----
+        var healthConPdf = state.health.filter(function(h) { return h.pdfUrl; });
+        if (healthConPdf.length) {
+          if (y > 240) { doc.addPage(); y = 18; }
+          doc.setFillColor(74, 124, 89);
+          doc.setTextColor(255, 255, 255);
+          doc.setFontSize(11);
+          doc.setFont('helvetica', 'bold');
+          doc.rect(margin, y, contentW, 8, 'F');
+          doc.text('Documentos adjuntos', margin + 3, y + 5.5);
+          y += 12;
+          doc.setFont('helvetica', 'normal');
+          doc.setFontSize(10);
+          healthConPdf.forEach(function(h) {
+            if (y > 275) { doc.addPage(); y = 18; }
+            doc.setTextColor(44, 36, 22);
+            doc.text('• ' + h.title + '  (' + formatDate(h.date) + ')', margin + 2, y);
+            doc.setTextColor(74, 124, 89);
+            doc.textWithLink('  Ver PDF en Google Drive', margin + 2, y + 5, { url: h.pdfUrl });
+            doc.setDrawColor(196, 154, 108);
+            doc.line(margin, y + 8, margin + contentW, y + 8);
+            y += 13;
+          });
+          y += 4;
+        }
+      }
+
+      // ---- REGISTRO DE PESO ----
+      if (state.weights && state.weights.length) {
+        var weightRows = state.weights.slice(-12).reverse().map(function(w) {
+          return [formatDate(w.date), w.val + ' kg', w.note || '-'];
+        });
+        doc.autoTable({
+          startY: y,
+          head: [['Registro de peso', '', '']],
+          body: weightRows,
+          theme: 'striped',
+          headStyles: { fillColor: [139, 94, 60], textColor: 255, fontStyle: 'bold', fontSize: 11 },
+          bodyStyles: { fontSize: 10, textColor: [44, 36, 22] },
+          columnStyles: { 0: { cellWidth: 40 }, 1: { cellWidth: 30, halign: 'center' }, 2: { cellWidth: contentW - 70 } },
+          margin: { left: margin, right: margin },
+          styles: { cellPadding: 4 }
+        });
+        y = doc.lastAutoTable.finalY + 10;
+      }
+
+      // ---- ACTIVIDADES ----
+      if (state.activities && state.activities.length) {
+        // Check if need new page
+        if (y > 230) { doc.addPage(); y = 18; }
+        var actRows = state.activities.slice(0, 20).map(function(a) {
+          return [formatDate(a.date), cap(a.type), a.name, a.duration ? a.duration + ' min' : '-'];
+        });
+        doc.autoTable({
+          startY: y,
+          head: [['Actividades', '', '', '']],
+          body: actRows,
+          theme: 'striped',
+          headStyles: { fillColor: [232, 160, 32], textColor: [44, 36, 22], fontStyle: 'bold', fontSize: 11 },
+          bodyStyles: { fontSize: 10, textColor: [44, 36, 22] },
+          columnStyles: { 0: { cellWidth: 35 }, 1: { cellWidth: 30 }, 2: { cellWidth: contentW - 90 }, 3: { cellWidth: 25, halign: 'center' } },
+          margin: { left: margin, right: margin },
+          styles: { cellPadding: 4 }
+        });
+        y = doc.lastAutoTable.finalY + 10;
+      }
+
+      // ---- AGENDA ----
+      if (state.events && state.events.length) {
+        if (y > 230) { doc.addPage(); y = 18; }
+        var eventRows = state.events.map(function(e) {
+          return [formatDate(e.date), e.type, e.title, e.notes || '-'];
+        });
+        doc.autoTable({
+          startY: y,
+          head: [['Agenda / Proximos eventos', '', '', '']],
+          body: eventRows,
+          theme: 'striped',
+          headStyles: { fillColor: [44, 36, 22], textColor: 255, fontStyle: 'bold', fontSize: 11 },
+          bodyStyles: { fontSize: 10, textColor: [44, 36, 22] },
+          columnStyles: { 0: { cellWidth: 35 }, 1: { cellWidth: 30 }, 2: { cellWidth: contentW - 90 }, 3: { cellWidth: 25 } },
+          margin: { left: margin, right: margin },
+          styles: { cellPadding: 4 }
+        });
+        y = doc.lastAutoTable.finalY + 10;
+      }
+
+      // ---- FOOTER en cada página ----
+      var totalPages = doc.internal.getNumberOfPages();
+      for (var i = 1; i <= totalPages; i++) {
+        doc.setPage(i);
+        doc.setFontSize(8);
+        doc.setTextColor(160, 140, 120);
+        doc.text('PetPal  •  ' + (p.name || 'Mascota') + '  •  Página ' + i + ' de ' + totalPages, pageW / 2, 292, { align: 'center' });
+      }
+
+      resolve(doc.output('blob'));
+    } catch(e) {
+      reject(e);
+    }
+  });
+}
+
+// ===================== FIN REPORTE =====================
+
+
 function formatDate(str) {
   if (!str) return '';
   var d = new Date(str+'T00:00:00');
@@ -1484,7 +2061,7 @@ window.openModal = function(id) {
   };
   if (dateFields[id]) {
     var field = document.getElementById(dateFields[id]);
-    if (field && !field.value) field.value = today;
+    if (field) field.value = today;
   }
 }
 window.closeModal = function(id) { document.getElementById(id).classList.remove('open'); }
@@ -1535,13 +2112,14 @@ window.addEventListener('appinstalled', function() {
   deferredPrompt = null;
 });
 
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', function() {
-    navigator.serviceWorker.register('/petpal/sw.js')
-      .then(function(reg) { console.log('SW registrado:', reg.scope); })
-      .catch(function(e) { console.log('SW error:', e); });
-  });
-}
+// Service Worker deshabilitado en este entorno
+// if ('serviceWorker' in navigator) {
+//   window.addEventListener('load', function() {
+//     navigator.serviceWorker.register('/petpal/sw.js')
+//       .then(function(reg) { console.log('SW registrado:', reg.scope); })
+//       .catch(function(e) { console.log('SW error:', e); });
+//   });
+// }
 </script>
 </body>
 </html>
