@@ -539,7 +539,8 @@ window.saveNewPet = async function() {
   var photoInput = document.getElementById('newPetPhotoInput');
   if (photoInput.files && photoInput.files[0]) {
     try {
-      photoUrl = await uploadToDrive(photoInput.files[0], 'profile_' + petId + '.jpg');
+      var presult = await uploadToDrive(photoInput.files[0], 'profile_' + petId + '.jpg');
+      photoUrl = presult.url;
     } catch(e) { psToast('Error foto: ' + (e.message || 'desconocido')); }
   }
   await savePetProfile(petId, {
@@ -600,7 +601,7 @@ async function uploadToDrive(file, filename) {
       headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
       body: JSON.stringify({ role: 'reader', type: 'anyone' })
     });
-    return 'https://lh3.googleusercontent.com/d/' + data.id;
+    return { url: 'https://lh3.googleusercontent.com/d/' + data.id, driveId: data.id };
   } catch(e) {
     window.toast('Error: ' + e.message);
     throw e;
@@ -650,9 +651,9 @@ window.saveGalleryPhoto = async function() {
   var file = input.files[0];
   var photoId = Date.now();
   try {
-    var url = await uploadToDrive(file, 'gallery_' + photoId + '.jpg');
+    var result = await uploadToDrive(file, 'gallery_' + photoId + '.jpg');
     if (!window.state.photos) window.state.photos = [];
-    window.state.photos.unshift({ data:url, desc:document.getElementById('galleryPhotoDesc').value, date:document.getElementById('galleryPhotoDate').value, fav:false, id:photoId });
+    window.state.photos.unshift({ data:result.url, driveId:result.driveId, desc:document.getElementById('galleryPhotoDesc').value, date:document.getElementById('galleryPhotoDate').value, fav:false, id:photoId });
     if (window.save) window.save();
     if (window.closePhotoUploadModal) window.closePhotoUploadModal();
     if (window.renderGallery) window.renderGallery();
@@ -666,11 +667,12 @@ window.loadPhoto = async function(event) {
   if (!fbUser || !fbPetId) { window.toast('Error: no hay mascota activa'); return; }
   window.toast('Subiendo foto...');
   try {
-    var url = await uploadToDrive(file, 'profile_' + fbPetId + '.jpg');
-    document.getElementById('avatarImg').src = url;
+    var result = await uploadToDrive(file, 'profile_' + fbPetId + '.jpg');
+    document.getElementById('avatarImg').src = result.url;
     document.getElementById('avatarImg').style.display = 'block';
     document.getElementById('avatarEmoji').style.display = 'none';
-    window.state.profile.photo = url;
+    window.state.profile.photo = result.url;
+    window.state.profile.photoDriveId = result.driveId;
     if (window.updateNavBadge) window.updateNavBadge();
     if (window.save) window.save();
     window.toast('Foto guardada!');
@@ -1397,6 +1399,14 @@ window.toggleFavPhoto = function() {
 window.deleteGalleryPhoto = function() {
   if (lightboxIndex < 0) return;
   if (!confirm('Eliminar esta foto?')) return;
+  var photo = window.state.photos[lightboxIndex];
+  // Borrar de Google Drive si hay token y driveId
+  if (photo && photo.driveId && window.googleAccessToken) {
+    fetch('https://www.googleapis.com/drive/v3/files/' + photo.driveId, {
+      method: 'DELETE',
+      headers: { 'Authorization': 'Bearer ' + window.googleAccessToken }
+    }).catch(function(e) { console.log('Error borrando de Drive:', e); });
+  }
   window.state.photos.splice(lightboxIndex, 1);
   lightboxIndex = -1;
   if (window.save) window.save();
