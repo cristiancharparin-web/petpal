@@ -1895,15 +1895,9 @@ function generarPDF() {
       // ---- HISTORIAL DE SALUD ----
       if (state.health && state.health.length) {
         var healthLabels = { vaccine: 'Vacuna', vet: 'Veterinario', health: 'Medicamento', other: 'Otro' };
-        function sanitizePdfName(name) {
-          if (!name) return 'Ver PDF';
-          var s = name.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-          s = s.replace(/[^\x20-\x7E]/g, '').trim();
-          return s.length > 30 ? s.substring(0, 28) + '...' : (s || 'Ver PDF');
-        }
         var healthRows = state.health.map(function(h) {
           var detalle = h.notes ? h.notes + (h.date ? '\n' + formatDate(h.date) : '') : formatDate(h.date);
-          if (h.pdfUrl) detalle += '\nAdj: ' + sanitizePdfName(h.pdfName);
+          if (h.pdfUrl) detalle += '\nAdjunto';
           return [healthLabels[h.type] || 'Otro', h.title, detalle];
         });
         doc.autoTable({
@@ -1915,7 +1909,23 @@ function generarPDF() {
           bodyStyles: { fontSize: 10, textColor: [44, 36, 22] },
           columnStyles: { 0: { cellWidth: 32 }, 1: { cellWidth: 70 }, 2: { cellWidth: contentW - 102 } },
           margin: { left: margin, right: margin },
-          styles: { cellPadding: 4 }
+          styles: { cellPadding: 4 },
+          didDrawCell: function(data) {
+            if (data.section === 'body' && data.column.index === 2) {
+              var h = state.health[data.row.index];
+              if (h && h.pdfUrl) {
+                var linkY = data.cell.y + data.cell.height - 5;
+                var bgColor = data.row.index % 2 === 0 ? [255,255,255] : [239,239,239];
+                doc.setFillColor(bgColor[0], bgColor[1], bgColor[2]);
+                doc.rect(data.cell.x + 1, linkY - 5, 22, 7, 'F');
+                doc.setTextColor(74, 124, 89);
+                doc.setFontSize(9);
+                doc.textWithLink('Adjunto', data.cell.x + 4, linkY, { url: h.pdfUrl });
+                doc.setTextColor(44, 36, 22);
+                doc.setFontSize(10);
+              }
+            }
+          }
         });
         y = doc.lastAutoTable.finalY + 10;
 
