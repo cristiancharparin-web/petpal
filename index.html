@@ -1895,19 +1895,17 @@ function generarPDF() {
       // ---- HISTORIAL DE SALUD ----
       if (state.health && state.health.length) {
         var healthLabels = { vaccine: 'Vacuna', vet: 'Veterinario', health: 'Medicamento', other: 'Otro' };
-        var healthRows = state.health.map(function(h) {
-          var detalle = h.notes ? h.notes + (h.date ? '\n' + formatDate(h.date) : '') : formatDate(h.date);
-          if (h.pdfUrl) { detalle += '\n '; }
-          return [healthLabels[h.type] || 'Otro', h.title, detalle];
-        });
         // Funcion para limpiar nombre de archivo (sin emojis ni caracteres especiales)
         function sanitizePdfName(name) {
           if (!name) return 'Ver PDF';
-          var s = name.normalize('NFD').replace(/[\u0300-\u036f]/g, ''); // quitar tildes
-          s = s.replace(/[^\x20-\x7E]/g, '');  // solo ASCII imprimible
-          s = s.trim();
+          var s = name.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+          s = s.replace(/[^\x20-\x7E]/g, '').trim();
           return s.length > 30 ? s.substring(0, 28) + '...' : (s || 'Ver PDF');
         }
+        var healthRows = state.health.map(function(h) {
+          var detalle = h.notes ? h.notes + (h.date ? '\n' + formatDate(h.date) : '') : formatDate(h.date);
+          return [healthLabels[h.type] || 'Otro', h.title, detalle];
+        });
         doc.autoTable({
           startY: y,
           head: [['Historial medico', '', '']],
@@ -1917,21 +1915,19 @@ function generarPDF() {
           bodyStyles: { fontSize: 10, textColor: [44, 36, 22] },
           columnStyles: { 0: { cellWidth: 32 }, 1: { cellWidth: 70 }, 2: { cellWidth: contentW - 102 } },
           margin: { left: margin, right: margin },
-          styles: { cellPadding: 4 },
+          styles: { cellPadding: 5 },
           didDrawCell: function(data) {
             if (data.section === 'body' && data.column.index === 2) {
               var h = state.health[data.row.index];
               if (h && h.pdfUrl) {
-                var lines = data.cell.text;
-                var lastLine = lines[lines.length - 1];
-                if (lastLine !== undefined && h.pdfUrl) {
-                  var linkY = data.cell.y + data.cell.height - 4.5;
-                  doc.setTextColor(74, 124, 89);
-                  doc.setFontSize(9);
-                  doc.textWithLink('[PDF] ' + sanitizePdfName(h.pdfName), data.cell.x + 2, linkY, { url: h.pdfUrl });
-                  doc.setTextColor(44, 36, 22);
-                  doc.setFontSize(10);
-                }
+                var linkY = data.cell.y + data.cell.height - 4.5;
+                doc.setFillColor(data.row.index % 2 === 0 ? 255 : 242);
+                doc.rect(data.cell.x, linkY - 5, data.cell.width, 7, 'F');
+                doc.setTextColor(74, 124, 89);
+                doc.setFontSize(9);
+                doc.textWithLink('[PDF] ' + sanitizePdfName(h.pdfName), data.cell.x + 2, linkY, { url: h.pdfUrl });
+                doc.setTextColor(44, 36, 22);
+                doc.setFontSize(10);
               }
             }
           }
