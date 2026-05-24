@@ -1915,14 +1915,18 @@ function generarPDF() {
               var h = state.health[data.row.index];
               if (h && h.pdfUrl) {
                 var linkY = data.cell.y + data.cell.height - 5;
-                var bgColor = data.row.index % 2 === 0 ? [255,255,255] : [239,239,239];
-                doc.setFillColor(bgColor[0], bgColor[1], bgColor[2]);
-                doc.rect(data.cell.x + 1, linkY - 5, 22, 7, 'F');
-                doc.setTextColor(74, 124, 89);
-                doc.setFontSize(9);
-                doc.textWithLink('Adjunto', data.cell.x + 4, linkY, { url: h.pdfUrl });
+                var x = data.cell.x + 4;
+                // Fondo tipo pastilla verde
+                doc.setFillColor(74, 124, 89);
+                doc.roundedRect(x - 2, linkY - 4.5, 24, 6.5, 1.5, 1.5, 'F');
+                // Texto blanco encima
+                doc.setTextColor(255, 255, 255);
+                doc.setFontSize(8);
+                doc.setFont('helvetica', 'bold');
+                doc.textWithLink('+ Adjunto', x + 1, linkY, { url: h.pdfUrl });
                 doc.setTextColor(44, 36, 22);
                 doc.setFontSize(10);
+                doc.setFont('helvetica', 'normal');
               }
             }
           }
