@@ -1916,14 +1916,12 @@ function generarPDF() {
               if (h && h.pdfUrl) {
                 var linkY = data.cell.y + data.cell.height - 5;
                 var x = data.cell.x + 4;
-                // Fondo tipo pastilla verde
                 doc.setFillColor(74, 124, 89);
-                doc.roundedRect(x - 2, linkY - 4.5, 24, 6.5, 1.5, 1.5, 'F');
-                // Texto blanco encima
+                doc.roundedRect(x - 1, linkY - 3, 16, 4.5, 1, 1, 'F');
                 doc.setTextColor(255, 255, 255);
-                doc.setFontSize(8);
+                doc.setFontSize(6);
                 doc.setFont('helvetica', 'bold');
-                doc.textWithLink('+ Adjunto', x + 1, linkY, { url: h.pdfUrl });
+                doc.textWithLink('+ Adjunto', x + 0.5, linkY, { url: h.pdfUrl });
                 doc.setTextColor(44, 36, 22);
                 doc.setFontSize(10);
                 doc.setFont('helvetica', 'normal');
