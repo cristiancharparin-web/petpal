@@ -1224,7 +1224,10 @@ window.saveHealth = function() {
   toast('Registro guardado');
 }
 
-window.deleteHealth = function(i) { state.health.splice(i,1); save(); renderHealthLog(); updateStats(); }
+window.deleteHealth = function(i) {
+  if (!confirm('¿Está seguro que desea eliminar este registro?')) return;
+  state.health.splice(i,1); save(); renderHealthLog(); updateStats();
+}
 
 function renderHealthLog() {
   var list = document.getElementById('healthLog');
@@ -1233,14 +1236,30 @@ function renderHealthLog() {
     return;
   }
   var icons = { vaccine:'💉', vet:'🩺', health:'💊', other:'📋' };
-  list.innerHTML = state.health.map(function(h,i) {
-    return '<li class="log-item">'
-      +'<div class="log-dot '+(h.type==='vaccine'?'vaccine':h.type==='vet'?'vet':'health')+'">'+(icons[h.type]||'📋')+'</div>'
-      +'<div class="log-meta"><div class="log-title">'+h.title+'</div>'+(h.notes?'<div class="log-desc">'+h.notes+'</div>':'')+'</div>'
-      +'<div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px"><div class="log-date">'+formatDate(h.date)+'</div>'
-      +'<button class="btn btn-danger" onclick="deleteHealth('+i+')">Eliminar</button></div>'
-      +'</li>';
+  var labels = { vaccine:'Vacuna', vet:'Veterinario', health:'Medicamento', other:'Otro' };
+  var rows = state.health.map(function(h,i) {
+    return '<tr>'
+      +'<td style="padding:10px 8px;border-bottom:1px solid var(--border);">'+(icons[h.type]||'📋')+' '+(labels[h.type]||'Otro')+'</td>'
+      +'<td style="padding:10px 8px;border-bottom:1px solid var(--border);font-weight:600;">'+h.title+'</td>'
+      +'<td style="padding:10px 8px;border-bottom:1px solid var(--border);color:var(--mid);font-size:13px;">'+(h.notes||'-')+'</td>'
+      +'<td style="padding:10px 8px;border-bottom:1px solid var(--border);white-space:nowrap;font-size:13px;">'+formatDate(h.date)+'</td>'
+      +'<td style="padding:10px 8px;border-bottom:1px solid var(--border);text-align:right;">'
+      +'<button onclick="deleteHealth('+i+')" style="background:#c0392b;color:white;border:none;border-radius:8px;padding:5px 12px;font-size:12px;cursor:pointer;font-weight:600;">Eliminar</button>'
+      +'</td>'
+      +'</tr>';
   }).join('');
+  list.innerHTML = '<li style="padding:0;list-style:none;">'
+    +'<div style="overflow-x:auto;">'
+    +'<table style="width:100%;border-collapse:collapse;font-size:14px;">'
+    +'<thead><tr style="background:var(--surface2);">'
+    +'<th style="padding:10px 8px;text-align:left;font-size:12px;color:var(--mid);font-weight:600;border-bottom:2px solid var(--border);">Tipo</th>'
+    +'<th style="padding:10px 8px;text-align:left;font-size:12px;color:var(--mid);font-weight:600;border-bottom:2px solid var(--border);">Título</th>'
+    +'<th style="padding:10px 8px;text-align:left;font-size:12px;color:var(--mid);font-weight:600;border-bottom:2px solid var(--border);">Notas</th>'
+    +'<th style="padding:10px 8px;text-align:left;font-size:12px;color:var(--mid);font-weight:600;border-bottom:2px solid var(--border);">Fecha</th>'
+    +'<th style="padding:10px 8px;border-bottom:2px solid var(--border);"></th>'
+    +'</tr></thead>'
+    +'<tbody>'+rows+'</tbody>'
+    +'</table></div></li>';
 }
 
 window.saveActivity = function() {
@@ -1256,7 +1275,10 @@ window.saveActivity = function() {
   toast('Actividad guardada');
 }
 
-window.deleteActivity = function(i) { state.activities.splice(i,1); save(); renderActivities(); }
+window.deleteActivity = function(i) {
+  if (!confirm('¿Está seguro que desea eliminar esta actividad?')) return;
+  state.activities.splice(i,1); save(); renderActivities();
+}
 
 function renderActivities() {
   var grid = document.getElementById('activityGrid');
@@ -1265,15 +1287,29 @@ function renderActivities() {
     return;
   }
   var icons = { paseo:'🦮', juego:'🎾', entrenamiento:'🏋️', otro:'⭐' };
-  grid.innerHTML = state.activities.map(function(a,i) {
-    return '<div class="activity-card">'
-      +'<div class="activity-header"><span class="activity-type type-'+a.type+'">'+(icons[a.type]||'')+' '+cap(a.type)+'</span>'
-      +'<button class="btn btn-danger" onclick="deleteActivity('+i+')">x</button></div>'
-      +'<div class="activity-name">'+a.name+'</div>'
-      +'<div class="activity-detail">'+formatDate(a.date)+(a.duration?' - '+a.duration+' min':'')+'</div>'
-      +(a.notes?'<div class="activity-detail" style="margin-top:6px;font-style:italic;">'+a.notes+'</div>':'')
-      +'</div>';
+  var rows = state.activities.map(function(a,i) {
+    return '<tr>'
+      +'<td style="padding:10px 8px;border-bottom:1px solid var(--border);white-space:nowrap;font-weight:700;color:var(--accent);">'+formatDate(a.date)+'</td>'
+      +'<td style="padding:10px 8px;border-bottom:1px solid var(--border);">'+(icons[a.type]||'⭐')+' '+cap(a.type)+'</td>'
+      +'<td style="padding:10px 8px;border-bottom:1px solid var(--border);font-weight:600;">'+a.name+'</td>'
+      +'<td style="padding:10px 8px;border-bottom:1px solid var(--border);font-size:13px;color:var(--mid);">'+(a.duration?a.duration+' min':'-')+'</td>'
+      +'<td style="padding:10px 8px;border-bottom:1px solid var(--border);font-size:13px;color:var(--mid);">'+(a.notes||'-')+'</td>'
+      +'<td style="padding:10px 8px;border-bottom:1px solid var(--border);text-align:right;">'
+      +'<button onclick="deleteActivity('+i+')" style="background:#c0392b;color:white;border:none;border-radius:8px;padding:5px 12px;font-size:12px;cursor:pointer;font-weight:600;">Eliminar</button>'
+      +'</td></tr>';
   }).join('');
+  grid.innerHTML = '<div style="grid-column:1/-1;overflow-x:auto;">'
+    +'<table style="width:100%;border-collapse:collapse;font-size:14px;">'
+    +'<thead><tr style="background:var(--surface2);">'
+    +'<th style="padding:10px 8px;text-align:left;font-size:12px;color:var(--mid);font-weight:600;border-bottom:2px solid var(--border);">Fecha</th>'
+    +'<th style="padding:10px 8px;text-align:left;font-size:12px;color:var(--mid);font-weight:600;border-bottom:2px solid var(--border);">Tipo</th>'
+    +'<th style="padding:10px 8px;text-align:left;font-size:12px;color:var(--mid);font-weight:600;border-bottom:2px solid var(--border);">Actividad</th>'
+    +'<th style="padding:10px 8px;text-align:left;font-size:12px;color:var(--mid);font-weight:600;border-bottom:2px solid var(--border);">Duración</th>'
+    +'<th style="padding:10px 8px;text-align:left;font-size:12px;color:var(--mid);font-weight:600;border-bottom:2px solid var(--border);">Notas</th>'
+    +'<th style="padding:10px 8px;border-bottom:2px solid var(--border);"></th>'
+    +'</tr></thead>'
+    +'<tbody>'+rows+'</tbody>'
+    +'</table></div>';
 }
 
 window.saveEvent = function() {
@@ -1288,7 +1324,10 @@ window.saveEvent = function() {
   toast('Evento guardado');
 }
 
-window.deleteEvent = function(i) { state.events.splice(i,1); save(); renderEvents(); }
+window.deleteEvent = function(i) {
+  if (!confirm('¿Está seguro que desea eliminar este evento?')) return;
+  state.events.splice(i,1); save(); renderEvents();
+}
 
 function renderEvents() {
   var list = document.getElementById('eventList');
@@ -1296,16 +1335,27 @@ function renderEvents() {
     list.innerHTML = '<div class="empty-state"><div class="icon">📅</div><p>Sin eventos programados.</p></div>';
     return;
   }
-  list.innerHTML = state.events.map(function(e,i) {
-    var d     = new Date(e.date+'T00:00:00');
-    var day   = d.getDate();
-    var month = d.toLocaleDateString('es-AR',{month:'short'}).toUpperCase();
-    return '<div class="upcoming-item">'
-      +'<div class="upcoming-date-box"><div class="upcoming-day">'+day+'</div><div class="upcoming-month">'+month+'</div></div>'
-      +'<div class="upcoming-info"><div class="upcoming-title">'+e.title+'</div><div class="upcoming-sub">'+e.type+(e.notes?' - '+e.notes:'')+'</div></div>'
-      +'<button class="btn btn-danger" onclick="deleteEvent('+i+')">x</button>'
-      +'</div>';
+  var rows = state.events.map(function(e,i) {
+    return '<tr>'
+      +'<td style="padding:10px 8px;border-bottom:1px solid var(--border);white-space:nowrap;font-weight:700;color:var(--accent);">'+formatDate(e.date)+'</td>'
+      +'<td style="padding:10px 8px;border-bottom:1px solid var(--border);">'+e.type+'</td>'
+      +'<td style="padding:10px 8px;border-bottom:1px solid var(--border);font-weight:600;">'+e.title+'</td>'
+      +'<td style="padding:10px 8px;border-bottom:1px solid var(--border);font-size:13px;color:var(--mid);">'+(e.notes||'-')+'</td>'
+      +'<td style="padding:10px 8px;border-bottom:1px solid var(--border);text-align:right;">'
+      +'<button onclick="deleteEvent('+i+')" style="background:#c0392b;color:white;border:none;border-radius:8px;padding:5px 12px;font-size:12px;cursor:pointer;font-weight:600;">Eliminar</button>'
+      +'</td></tr>';
   }).join('');
+  list.innerHTML = '<div style="overflow-x:auto;">'
+    +'<table style="width:100%;border-collapse:collapse;font-size:14px;">'
+    +'<thead><tr style="background:var(--surface2);">'
+    +'<th style="padding:10px 8px;text-align:left;font-size:12px;color:var(--mid);font-weight:600;border-bottom:2px solid var(--border);">Fecha</th>'
+    +'<th style="padding:10px 8px;text-align:left;font-size:12px;color:var(--mid);font-weight:600;border-bottom:2px solid var(--border);">Tipo</th>'
+    +'<th style="padding:10px 8px;text-align:left;font-size:12px;color:var(--mid);font-weight:600;border-bottom:2px solid var(--border);">Evento</th>'
+    +'<th style="padding:10px 8px;text-align:left;font-size:12px;color:var(--mid);font-weight:600;border-bottom:2px solid var(--border);">Notas</th>'
+    +'<th style="padding:10px 8px;border-bottom:2px solid var(--border);"></th>'
+    +'</tr></thead>'
+    +'<tbody>'+rows+'</tbody>'
+    +'</table></div>';
 }
 
 function updateStats() {
@@ -1319,7 +1369,7 @@ window.openPhotoUploadModal = function() {
   document.getElementById('galleryPhotoData').value='';
   document.getElementById('galleryPhotoInput').value='';
   document.getElementById('galleryPhotoDesc').value='';
-  document.getElementById('galleryPhotoDate').value=new Date().toISOString().split('T')[0];
+  document.getElementById('galleryPhotoDate').value = new Date().toISOString().split('T')[0];
   document.getElementById('uploadPreviewImg').style.display='none';
   document.getElementById('uploadDropArea').classList.remove('has-preview');
   document.getElementById('uploadDropArea').querySelector('.upload-icon').style.display='block';
@@ -1423,7 +1473,20 @@ function formatDate(str) {
   return d.toLocaleDateString('es-AR',{day:'2-digit',month:'short',year:'numeric'});
 }
 
-window.openModal = function(id) { document.getElementById(id).classList.add('open'); }
+window.openModal = function(id) {
+  document.getElementById(id).classList.add('open');
+  var today = new Date().toISOString().split('T')[0];
+  var dateFields = {
+    'weightModal':   'weightDate',
+    'healthModal':   'healthDate',
+    'activityModal': 'actDate',
+    'eventModal':    'eventDate'
+  };
+  if (dateFields[id]) {
+    var field = document.getElementById(dateFields[id]);
+    if (field && !field.value) field.value = today;
+  }
+}
 window.closeModal = function(id) { document.getElementById(id).classList.remove('open'); }
 
 window.toast = function toast(msg) {
