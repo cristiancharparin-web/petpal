@@ -1897,7 +1897,7 @@ function generarPDF() {
         var healthLabels = { vaccine: 'Vacuna', vet: 'Veterinario', health: 'Medicamento', other: 'Otro' };
         var healthRows = state.health.map(function(h) {
           var detalle = h.notes ? h.notes + (h.date ? '\n' + formatDate(h.date) : '') : formatDate(h.date);
-          if (h.pdfUrl) detalle += '\n ';
+          if (h.pdfUrl) detalle += '';
           return [healthLabels[h.type] || 'Otro', h.title, detalle];
         });
         doc.autoTable({
@@ -1909,25 +1909,7 @@ function generarPDF() {
           bodyStyles: { fontSize: 10, textColor: [44, 36, 22] },
           columnStyles: { 0: { cellWidth: 32 }, 1: { cellWidth: 70 }, 2: { cellWidth: contentW - 102 } },
           margin: { left: margin, right: margin },
-          styles: { cellPadding: 4 },
-          didDrawCell: function(data) {
-            if (data.section === 'body' && data.column.index === 2) {
-              var h = state.health[data.row.index];
-              if (h && h.pdfUrl) {
-                var linkY = data.cell.y + data.cell.height - 5;
-                var x = data.cell.x + 4;
-                doc.setFillColor(232, 160, 32);
-                doc.roundedRect(x - 1, linkY - 2.5, 12, 3.5, 0.8, 0.8, 'F');
-                doc.setTextColor(44, 36, 22);
-                doc.setFontSize(4);
-                doc.setFont('helvetica', 'bold');
-                doc.textWithLink('+ Adjunto', x + 0.3, linkY, { url: h.pdfUrl });
-                doc.setTextColor(44, 36, 22);
-                doc.setFontSize(10);
-                doc.setFont('helvetica', 'normal');
-              }
-            }
-          }
+          styles: { cellPadding: 4 }
         });
         y = doc.lastAutoTable.finalY + 10;
 
