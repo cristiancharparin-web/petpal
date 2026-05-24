@@ -1897,7 +1897,7 @@ function generarPDF() {
         var healthLabels = { vaccine: 'Vacuna', vet: 'Veterinario', health: 'Medicamento', other: 'Otro' };
         var healthRows = state.health.map(function(h) {
           var detalle = h.notes ? h.notes + (h.date ? '\n' + formatDate(h.date) : '') : formatDate(h.date);
-          if (h.pdfUrl) detalle += '\nAdjunto';
+          if (h.pdfUrl) detalle += '\n ';
           return [healthLabels[h.type] || 'Otro', h.title, detalle];
         });
         doc.autoTable({
