@@ -1897,7 +1897,7 @@ function generarPDF() {
         var healthLabels = { vaccine: 'Vacuna', vet: 'Veterinario', health: 'Medicamento', other: 'Otro' };
         var healthRows = state.health.map(function(h) {
           var detalle = h.notes ? h.notes + (h.date ? '\n' + formatDate(h.date) : '') : formatDate(h.date);
-          if (h.pdfUrl) { detalle += '\n[PDF adjunto]'; }
+          if (h.pdfUrl) { detalle += '\n '; }
           return [healthLabels[h.type] || 'Otro', h.title, detalle];
         });
         // Funcion para limpiar nombre de archivo (sin emojis ni caracteres especiales)
@@ -1924,7 +1924,7 @@ function generarPDF() {
               if (h && h.pdfUrl) {
                 var lines = data.cell.text;
                 var lastLine = lines[lines.length - 1];
-                if (lastLine && lastLine.indexOf('[PDF adjunto]') !== -1) {
+                if (lastLine !== undefined && h.pdfUrl) {
                   var linkY = data.cell.y + data.cell.height - 4.5;
                   doc.setTextColor(74, 124, 89);
                   doc.setFontSize(9);
