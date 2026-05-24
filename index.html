@@ -254,7 +254,7 @@ textarea{resize:vertical;min-height:80px;}
 <!-- FIREBASE MODULE -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail, GoogleAuthProvider, signInWithPopup } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import { getFirestore, doc, setDoc, getDoc, collection, getDocs, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
 
@@ -278,6 +278,15 @@ const EMOJI = {Perro:'🐶',Gato:'🐱',Conejo:'🐰',Pajaro:'🐦',Tortuga:'�
 
 // Al iniciar siempre cerrar sesión para forzar login
 signOut(auth).catch(function(){});
+
+// Obtener token si venimos de un redirect de Google
+getRedirectResult(auth).then(function(result) {
+  if (result) {
+    var credential = GoogleAuthProvider.credentialFromResult(result);
+    googleAccessToken = credential ? credential.accessToken : null;
+    window.googleAccessToken = googleAccessToken;
+  }
+}).catch(function(e) { console.log('redirect result error:', e); });
 
 onAuthStateChanged(auth, async function(user) {
   if (user) {
@@ -335,12 +344,18 @@ window.doGoogleLogin = async function() {
     var provider = new GoogleAuthProvider();
     provider.addScope('https://www.googleapis.com/auth/drive.file');
     provider.addScope('https://www.googleapis.com/auth/drive');
-    var result = await signInWithPopup(auth, provider);
-    var credential = GoogleAuthProvider.credentialFromResult(result);
-    googleAccessToken = credential ? credential.accessToken : null;
-    window.googleAccessToken = googleAccessToken;
+    // Usar redirect en mobile, popup en desktop
+    var isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    if (isMobile) {
+      await signInWithRedirect(auth, provider);
+    } else {
+      var result = await signInWithPopup(auth, provider);
+      var credential = GoogleAuthProvider.credentialFromResult(result);
+      googleAccessToken = credential ? credential.accessToken : null;
+      window.googleAccessToken = googleAccessToken;
+    }
   } catch(e) {
-    err.textContent = fbErr(e.code) || 'Error al iniciar con Google.';
+    err.textContent = (e.code || e.message || JSON.stringify(e));
   }
 };
 
@@ -1382,8 +1397,12 @@ window.toggleFavPhoto = function() {
 window.deleteGalleryPhoto = function() {
   if (lightboxIndex < 0) return;
   if (!confirm('Eliminar esta foto?')) return;
-  state.photos.splice(lightboxIndex, 1);
-  save(); renderGallery(); closeLightbox(); toast('Foto eliminada');
+  window.state.photos.splice(lightboxIndex, 1);
+  lightboxIndex = -1;
+  if (window.save) window.save();
+  if (window.renderGallery) window.renderGallery();
+  if (window.closeLightbox) window.closeLightbox();
+  if (window.toast) window.toast('Foto eliminada');
 }
 
 function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
