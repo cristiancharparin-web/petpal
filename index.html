@@ -499,28 +499,29 @@ window.deletePetFS = async function(petId) {
       var data = snap.data();
       var filesToDelete = [];
 
+      // Recolectar Drive IDs a borrar
+      var driveIds = [];
+
       // Foto de perfil
-      if (data.profile && data.profile.photo) {
-        filesToDelete.push(data.profile.photo);
-      }
+      if (data.profile && data.profile.photoDriveId) driveIds.push(data.profile.photoDriveId);
+
       // Fotos de galería
       if (data.photos && data.photos.length) {
-        data.photos.forEach(function(p) { if (p.url) filesToDelete.push(p.url); });
-      }
-      // PDFs de salud
-      if (data.health && data.health.length) {
-        data.health.forEach(function(h) { if (h.pdfUrl) filesToDelete.push(h.pdfUrl); });
+        data.photos.forEach(function(p) { if (p.driveId) driveIds.push(p.driveId); });
       }
 
-      // Borrar cada archivo de Storage
-      for (var i = 0; i < filesToDelete.length; i++) {
-        try {
-          var fileRef = storageRef(storage, filesToDelete[i]);
-          await deleteObject(fileRef);
-        } catch(e) {
-          // Si el archivo ya no existe, ignorar
-          if (e.code !== 'storage/object-not-found') console.warn('No se pudo borrar:', filesToDelete[i], e.message);
+      // Borrar cada archivo de Drive
+      var token = window.googleAccessToken;
+      if (token && driveIds.length) {
+        for (var i = 0; i < driveIds.length; i++) {
+          try {
+            await fetch('https://www.googleapis.com/drive/v3/files/' + driveIds[i], {
+              method: 'DELETE',
+              headers: { 'Authorization': 'Bearer ' + token }
+            });
+          } catch(e) { console.warn('No se pudo borrar Drive ID:', driveIds[i]); }
         }
+        toast('Fotos eliminadas de Drive');
       }
     }
   } catch(e) { console.warn('Error limpiando storage:', e.message); }
@@ -624,17 +625,20 @@ window.saveNewPet = async function() {
   if (pets.length >= 3) { alert('Ya tienes 3 mascotas.'); return; }
   var petId = 'pet_' + Date.now();
   var photoUrl = '';
+  var photoDriveId = '';
   var photoInput = document.getElementById('newPetPhotoInput');
   if (photoInput.files && photoInput.files[0]) {
     try {
       var presult = await uploadToDrive(photoInput.files[0], 'profile_' + petId + '.jpg');
       photoUrl = presult.url;
+      photoDriveId = presult.driveId;
     } catch(e) { psToast('Error foto: ' + (e.message || 'desconocido')); }
   }
   await savePetProfile(petId, {
     name: name,
     species: document.getElementById('newPetSpecies').value,
-    photo: photoUrl
+    photo: photoUrl,
+    photoDriveId: photoDriveId
   });
   closeAddPetModal();
   await renderPetSelector();
@@ -1268,7 +1272,8 @@ window.saveProfile = function() {
     vetPhone:  document.getElementById('petVetPhone').value,
     castrated: document.getElementById('petCastrated').value,
     allergies: document.getElementById('petAllergies').value,
-    photo:     state.profile.photo || ''
+    photo:     state.profile.photo || '',
+    photoDriveId: state.profile.photoDriveId || ''
   };
   save(); updateHero(); updateNavBadge(); toast('Perfil guardado');
 }
