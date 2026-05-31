@@ -2193,46 +2193,133 @@ window.generarCarnetDigital = function() {
   var ownerPhone= p.ownerPhone|| 'No especificado';
   var species   = p.species   || '';
   var breed     = p.breed     || '';
+  var EMOJI_MAP = {Perro:'🐶',Gato:'🐱',Conejo:'🐰',Pajaro:'🐦',Tortuga:'🐢',Pez:'🐟',Hamster:'🐹'};
+  var emoji     = EMOJI_MAP[species] || '🐾';
 
-  document.getElementById('carnetPetName').textContent = petName;
-  document.getElementById('carnetPetSub').textContent  = [species, breed].filter(Boolean).join(' · ');
+  // Llenar datos visibles del modal
+  document.getElementById('carnetPetName').textContent    = petName;
+  document.getElementById('carnetPetSub').textContent     = [species, breed].filter(Boolean).join(' · ');
   document.getElementById('carnetOwnerName').textContent  = ownerName;
   document.getElementById('carnetOwnerPhone').textContent = ownerPhone;
   document.getElementById('carnetQRText').textContent     = 'Tel: ' + ownerPhone;
 
-  // Avatar
+  // Avatar en el modal
   var avatarEl = document.getElementById('carnetAvatar');
-  var EMOJI_MAP = {Perro:'🐶',Gato:'🐱',Conejo:'🐰',Pajaro:'🐦',Tortuga:'🐢',Pez:'🐟',Hamster:'🐹'};
-  var emoji = EMOJI_MAP[species] || '🐾';
   avatarEl.textContent = emoji;
   avatarEl.style.fontSize = '32px';
   if (p.photo) {
-    // Cargar como base64 para que html2canvas también la capture
     urlToBase64(p.photo, function(b64) {
-      var src = b64 || p.photo;
-      avatarEl.innerHTML = '<img src="' + src + '" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">';
+      avatarEl.innerHTML = '<img src="' + (b64 || p.photo) + '" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">';
     });
   }
 
-  // QR con callback asíncrono
+  // Abrir modal con spinner mientras se genera
   var qrBox = document.getElementById('carnetQRBox');
-  qrBox.innerHTML = '<div style="width:160px;height:160px;display:flex;align-items:center;justify-content:center;color:var(--mid);font-size:12px;">Generando QR...</div>';
-  var qrText = 'BEGIN:VCARD\nVERSION:3.0\nFN:' + ownerName + '\nTEL:' + ownerPhone.replace(/\s+/g,'') + '\nNOTE:Dueno de ' + petName + '\nEND:VCARD';
-  generarQRCanvas(qrText, 160, function(cvs) {
-    qrBox.innerHTML = '';
-    if (cvs) {
-      cvs.style.cssText = 'width:160px;height:160px;display:block;border-radius:8px;';
-      qrBox.appendChild(cvs);
-    } else {
-      qrBox.innerHTML = '<div style="width:160px;height:50px;display:flex;align-items:center;justify-content:center;color:var(--mid);font-size:12px;text-align:center;">No se pudo generar el QR</div>';
-    }
-  });
-
+  qrBox.innerHTML = '<div style="width:160px;height:160px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:var(--mid);font-size:12px;"><div class=\'spinner\'></div>Generando...</div>';
   openModal('carnetModal');
+
+  // Construir imagen del carnet en canvas
+  function buildCarnetCanvas(photoB64, callback) {
+    var W = 720, H = 380, pad = 36, r = 22;
+    var cv = document.createElement('canvas');
+    cv.width = W; cv.height = H;
+    var ctx = cv.getContext('2d');
+
+    var grad = ctx.createLinearGradient(0, 0, W, H);
+    grad.addColorStop(0, '#8B5E3C'); grad.addColorStop(1, '#2C2416');
+    ctx.beginPath();
+    ctx.moveTo(r,0); ctx.lineTo(W-r,0); ctx.quadraticCurveTo(W,0,W,r);
+    ctx.lineTo(W,H-r); ctx.quadraticCurveTo(W,H,W-r,H);
+    ctx.lineTo(r,H); ctx.quadraticCurveTo(0,H,0,H-r);
+    ctx.lineTo(0,r); ctx.quadraticCurveTo(0,0,r,0);
+    ctx.closePath(); ctx.fillStyle = grad; ctx.fill();
+
+    ctx.font = '160px serif'; ctx.fillStyle = 'rgba(255,255,255,0.05)';
+    ctx.fillText('🐾', W-160, 160);
+
+    var ax = pad, ay = pad, aw = 90;
+    ctx.save();
+    ctx.beginPath(); ctx.arc(ax+aw/2,ay+aw/2,aw/2,0,Math.PI*2); ctx.clip();
+    if (photoB64) {
+      var img = new Image(); img.src = photoB64;
+      ctx.drawImage(img, ax, ay, aw, aw);
+    } else {
+      ctx.fillStyle='#F2E8D9'; ctx.fillRect(ax,ay,aw,aw);
+      ctx.font='44px serif'; ctx.fillStyle='#8B5E3C'; ctx.textAlign='center';
+      ctx.fillText(emoji, ax+aw/2, ay+aw/2+16);
+    }
+    ctx.restore();
+    ctx.beginPath(); ctx.arc(ax+aw/2,ay+aw/2,aw/2,0,Math.PI*2);
+    ctx.strokeStyle='#C49A6C'; ctx.lineWidth=3; ctx.stroke();
+
+    ctx.textAlign='left';
+    ctx.font='500 12px sans-serif'; ctx.fillStyle='rgba(255,255,255,0.5)';
+    ctx.fillText('MASCOTA', ax+aw+18, ay+20);
+    ctx.font='bold 38px Georgia,serif'; ctx.fillStyle='#fff';
+    ctx.fillText(petName, ax+aw+18, ay+60);
+    var sub=[species,breed].filter(Boolean).join(' · ');
+    ctx.font='15px sans-serif'; ctx.fillStyle='rgba(255,255,255,0.6)';
+    ctx.fillText(sub, ax+aw+18, ay+82);
+
+    ctx.beginPath(); ctx.moveTo(pad,ay+aw+20); ctx.lineTo(W-pad,ay+aw+20);
+    ctx.strokeStyle='rgba(255,255,255,0.15)'; ctx.lineWidth=1; ctx.stroke();
+
+    var ly=ay+aw+52;
+    ctx.font='600 11px sans-serif'; ctx.fillStyle='rgba(255,255,255,0.5)';
+    ctx.fillText('DUEÑO',pad,ly); ctx.fillText('CONTACTO',W/2,ly);
+    ctx.font='bold 20px sans-serif'; ctx.fillStyle='#fff';
+    ctx.fillText(ownerName,pad,ly+28); ctx.fillText(ownerPhone,W/2,ly+28);
+
+    ctx.textAlign='right';
+    ctx.font='italic 13px Georgia,serif'; ctx.fillStyle='rgba(255,255,255,0.3)';
+    ctx.fillText('PetPal', W-pad, H-16);
+
+    callback(cv);
+  }
+
+  // Subir a Drive y generar QR con la URL resultante
+  function subirYGenerarQR(canvasEl) {
+    canvasEl.toBlob(function(blob) {
+      var filename = 'carnet_' + petName.replace(/\s+/g,'_') + '_' + Date.now() + '.png';
+      var file = new File([blob], filename, {type:'image/png'});
+
+      if (!window.googleAccessToken) {
+        // Sin Drive: fallback vCard
+        generarQRCanvas('BEGIN:VCARD\nVERSION:3.0\nFN:' + ownerName + '\nTEL:' + ownerPhone.replace(/\s+/g,'') + '\nNOTE:Dueno de ' + petName + '\nEND:VCARD', 160, function(cvs) {
+          qrBox.innerHTML = '';
+          if (cvs) { cvs.style.cssText='width:160px;height:160px;display:block;border-radius:8px;'; qrBox.appendChild(cvs); }
+        });
+        return;
+      }
+
+      toast('Subiendo carnet...');
+      uploadToDrive(file, filename)
+        .then(function(result) {
+          var url = result.url;
+          document.getElementById('carnetQRText').textContent = '';
+          generarQRCanvas(url, 160, function(cvs) {
+            qrBox.innerHTML = '';
+            if (cvs) { cvs.style.cssText='width:160px;height:160px;display:block;border-radius:8px;'; qrBox.appendChild(cvs); }
+            toast('QR listo!');
+          });
+        })
+        .catch(function() {
+          generarQRCanvas('BEGIN:VCARD\nVERSION:3.0\nFN:' + ownerName + '\nTEL:' + ownerPhone.replace(/\s+/g,'') + '\nNOTE:Dueno de ' + petName + '\nEND:VCARD', 160, function(cvs) {
+            qrBox.innerHTML = '';
+            if (cvs) { cvs.style.cssText='width:160px;height:160px;display:block;border-radius:8px;'; qrBox.appendChild(cvs); }
+          });
+        });
+    }, 'image/png');
+  }
+
+  if (p.photo) {
+    urlToBase64(p.photo, function(b64) { buildCarnetCanvas(b64, subirYGenerarQR); });
+  } else {
+    buildCarnetCanvas(null, subirYGenerarQR);
+  }
 };
 
 window.descargarCarnet = function() {
-  // Dibujar el carnet directamente en canvas (evita problemas CORS de html2canvas)
   var p = state.profile || {};
   var petName    = p.name       || 'Sin nombre';
   var ownerName  = p.ownerName  || 'No especificado';
@@ -2242,135 +2329,80 @@ window.descargarCarnet = function() {
   var EMOJI_MAP  = {Perro:'🐶',Gato:'🐱',Conejo:'🐰',Pajaro:'🐦',Tortuga:'🐢',Pez:'🐟',Hamster:'🐹'};
   var emoji      = EMOJI_MAP[species] || '🐾';
 
-  function dibujar(photoB64, qrCvs) {
-    var W = 720, H = 440, pad = 40, r = 24;
-    var c = document.createElement('canvas');
-    c.width = W; c.height = H;
-    var ctx = c.getContext('2d');
+  function dibujar(photoB64) {
+    var W=720, H=380, pad=36, r=22;
+    var c=document.createElement('canvas'); c.width=W; c.height=H;
+    var ctx=c.getContext('2d');
 
-    // Fondo degradado
-    var grad = ctx.createLinearGradient(0, 0, W, H);
-    grad.addColorStop(0, '#8B5E3C');
-    grad.addColorStop(1, '#2C2416');
+    var grad=ctx.createLinearGradient(0,0,W,H);
+    grad.addColorStop(0,'#8B5E3C'); grad.addColorStop(1,'#2C2416');
     ctx.beginPath();
-    ctx.moveTo(r, 0); ctx.lineTo(W-r, 0); ctx.quadraticCurveTo(W, 0, W, r);
-    ctx.lineTo(W, H-r); ctx.quadraticCurveTo(W, H, W-r, H);
-    ctx.lineTo(r, H); ctx.quadraticCurveTo(0, H, 0, H-r);
-    ctx.lineTo(0, r); ctx.quadraticCurveTo(0, 0, r, 0);
-    ctx.closePath();
-    ctx.fillStyle = grad; ctx.fill();
+    ctx.moveTo(r,0); ctx.lineTo(W-r,0); ctx.quadraticCurveTo(W,0,W,r);
+    ctx.lineTo(W,H-r); ctx.quadraticCurveTo(W,H,W-r,H);
+    ctx.lineTo(r,H); ctx.quadraticCurveTo(0,H,0,H-r);
+    ctx.lineTo(0,r); ctx.quadraticCurveTo(0,0,r,0);
+    ctx.closePath(); ctx.fillStyle=grad; ctx.fill();
 
-    // Pata de fondo decorativa
-    ctx.font = '180px serif';
-    ctx.fillStyle = 'rgba(255,255,255,0.05)';
-    ctx.fillText('🐾', W - 180, 170);
+    ctx.font='160px serif'; ctx.fillStyle='rgba(255,255,255,0.05)';
+    ctx.fillText('🐾',W-160,160);
 
-    // Avatar círculo
-    var ax = pad, ay = pad, aw = 100;
+    var ax=pad,ay=pad,aw=90;
     ctx.save();
-    ctx.beginPath();
-    ctx.arc(ax + aw/2, ay + aw/2, aw/2, 0, Math.PI*2);
-    ctx.clip();
+    ctx.beginPath(); ctx.arc(ax+aw/2,ay+aw/2,aw/2,0,Math.PI*2); ctx.clip();
     if (photoB64) {
-      var img = new Image();
-      img.src = photoB64;
-      ctx.drawImage(img, ax, ay, aw, aw);
+      var img=new Image(); img.src=photoB64; ctx.drawImage(img,ax,ay,aw,aw);
     } else {
-      ctx.fillStyle = '#F2E8D9';
-      ctx.fillRect(ax, ay, aw, aw);
-      ctx.font = '52px serif';
-      ctx.fillStyle = '#8B5E3C';
-      ctx.textAlign = 'center';
-      ctx.fillText(emoji, ax + aw/2, ay + aw/2 + 18);
+      ctx.fillStyle='#F2E8D9'; ctx.fillRect(ax,ay,aw,aw);
+      ctx.font='44px serif'; ctx.fillStyle='#8B5E3C'; ctx.textAlign='center';
+      ctx.fillText(emoji,ax+aw/2,ay+aw/2+16);
     }
     ctx.restore();
-    // Borde avatar
-    ctx.beginPath();
-    ctx.arc(ax + aw/2, ay + aw/2, aw/2, 0, Math.PI*2);
-    ctx.strokeStyle = '#C49A6C'; ctx.lineWidth = 3; ctx.stroke();
+    ctx.beginPath(); ctx.arc(ax+aw/2,ay+aw/2,aw/2,0,Math.PI*2);
+    ctx.strokeStyle='#C49A6C'; ctx.lineWidth=3; ctx.stroke();
 
-    // Etiqueta MASCOTA
-    ctx.textAlign = 'left';
-    ctx.font = '600 13px DM Sans, sans-serif';
-    ctx.fillStyle = 'rgba(255,255,255,0.5)';
-    ctx.fillText('MASCOTA', ax + aw + 20, ay + 22);
+    ctx.textAlign='left';
+    ctx.font='500 12px sans-serif'; ctx.fillStyle='rgba(255,255,255,0.5)';
+    ctx.fillText('MASCOTA',ax+aw+18,ay+20);
+    ctx.font='bold 38px Georgia,serif'; ctx.fillStyle='#fff';
+    ctx.fillText(petName,ax+aw+18,ay+60);
+    var sub=[species,breed].filter(Boolean).join(' · ');
+    ctx.font='15px sans-serif'; ctx.fillStyle='rgba(255,255,255,0.6)';
+    ctx.fillText(sub,ax+aw+18,ay+82);
 
-    // Nombre mascota
-    ctx.font = 'bold 42px Fraunces, Georgia, serif';
-    ctx.fillStyle = '#ffffff';
-    ctx.fillText(petName, ax + aw + 20, ay + 66);
+    ctx.beginPath(); ctx.moveTo(pad,ay+aw+20); ctx.lineTo(W-pad,ay+aw+20);
+    ctx.strokeStyle='rgba(255,255,255,0.15)'; ctx.lineWidth=1; ctx.stroke();
 
-    // Sub (especie · raza)
-    var sub = [species, breed].filter(Boolean).join(' · ');
-    ctx.font = '16px DM Sans, sans-serif';
-    ctx.fillStyle = 'rgba(255,255,255,0.6)';
-    ctx.fillText(sub, ax + aw + 20, ay + 92);
+    var ly=ay+aw+52;
+    ctx.font='600 11px sans-serif'; ctx.fillStyle='rgba(255,255,255,0.5)';
+    ctx.fillText('DUEÑO',pad,ly); ctx.fillText('CONTACTO',W/2,ly);
+    ctx.font='bold 20px sans-serif'; ctx.fillStyle='#fff';
+    ctx.fillText(ownerName,pad,ly+28); ctx.fillText(ownerPhone,W/2,ly+28);
 
-    // Separador
-    ctx.beginPath();
-    ctx.moveTo(pad, ay + aw + 24);
-    ctx.lineTo(W - pad, ay + aw + 24);
-    ctx.strokeStyle = 'rgba(255,255,255,0.15)'; ctx.lineWidth = 1; ctx.stroke();
+    ctx.textAlign='right';
+    ctx.font='italic 13px Georgia,serif'; ctx.fillStyle='rgba(255,255,255,0.3)';
+    ctx.fillText('PetPal',W-pad,H-16);
 
-    // Labels dueño / contacto
-    var ly = ay + aw + 60;
-    ctx.font = '600 12px DM Sans, sans-serif';
-    ctx.fillStyle = 'rgba(255,255,255,0.5)';
-    ctx.fillText('DUEÑO', pad, ly);
-    ctx.fillText('CONTACTO', W/2, ly);
-
-    ctx.font = 'bold 22px DM Sans, sans-serif';
-    ctx.fillStyle = '#ffffff';
-    ctx.fillText(ownerName,  pad, ly + 30);
-    ctx.fillText(ownerPhone, W/2, ly + 30);
-
-    // Logo PetPal
-    ctx.textAlign = 'right';
-    ctx.font = 'italic 15px Fraunces, Georgia, serif';
-    ctx.fillStyle = 'rgba(255,255,255,0.3)';
-    ctx.fillText('PetPal', W - pad, H - pad);
-
-    // QR
-    var qrCanvas = qrCvs || document.querySelector('#carnetQRBox canvas');
-    if (qrCanvas) {
-      var qrSize = 140;
-      var qrX = W - pad - qrSize, qrY = pad;
-      // Fondo blanco para el QR
-      ctx.fillStyle = 'white';
-      var qrR = 12;
+    // QR del modal (ya tiene la URL de Drive)
+    var qrCvs=document.querySelector('#carnetQRBox canvas');
+    if (qrCvs) {
+      var qs=120,qx=W-pad-qs,qy=pad;
+      ctx.fillStyle='white';
       ctx.beginPath();
-      ctx.moveTo(qrX - 8 + qrR, qrY - 8);
-      ctx.lineTo(qrX - 8 + qrSize + 16 - qrR, qrY - 8);
-      ctx.quadraticCurveTo(qrX - 8 + qrSize + 16, qrY - 8, qrX - 8 + qrSize + 16, qrY - 8 + qrR);
-      ctx.lineTo(qrX - 8 + qrSize + 16, qrY - 8 + qrSize + 16 - qrR);
-      ctx.quadraticCurveTo(qrX - 8 + qrSize + 16, qrY - 8 + qrSize + 16, qrX - 8 + qrSize + 16 - qrR, qrY - 8 + qrSize + 16);
-      ctx.lineTo(qrX - 8 + qrR, qrY - 8 + qrSize + 16);
-      ctx.quadraticCurveTo(qrX - 8, qrY - 8 + qrSize + 16, qrX - 8, qrY - 8 + qrSize + 16 - qrR);
-      ctx.lineTo(qrX - 8, qrY - 8 + qrR);
-      ctx.quadraticCurveTo(qrX - 8, qrY - 8, qrX - 8 + qrR, qrY - 8);
-      ctx.closePath();
+      ctx.roundRect(qx-8,qy-8,qs+16,qs+16,10);
       ctx.fill();
-      ctx.drawImage(qrCanvas, qrX, qrY, qrSize, qrSize);
+      ctx.drawImage(qrCvs,qx,qy,qs,qs);
     }
 
-    // Descargar
-    var a = document.createElement('a');
-    a.download = (petName || 'mascota').replace(/\s+/g,'_') + '_carnet.png';
-    a.href = c.toDataURL('image/png');
-    a.click();
+    var a=document.createElement('a');
+    a.download=petName.replace(/\s+/g,'_')+'_carnet.png';
+    a.href=c.toDataURL('image/png'); a.click();
     toast('Carnet descargado!');
   }
 
-  var qrText2 = 'BEGIN:VCARD\nVERSION:3.0\nFN:' + ownerName + '\nTEL:' + ownerPhone.replace(/\s+/g,'') + '\nNOTE:Dueno de ' + petName + '\nEND:VCARD';
-  function continuar(photoB64) {
-    generarQRCanvas(qrText2, 160, function(qrCvs) {
-      dibujar(photoB64, qrCvs);
-    });
-  }
   if (p.photo) {
-    urlToBase64(p.photo, function(b64) { continuar(b64); });
+    urlToBase64(p.photo, function(b64) { dibujar(b64); });
   } else {
-    continuar(null);
+    dibujar(null);
   }
 };
 
