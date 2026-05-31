@@ -2087,30 +2087,41 @@ window.generarCarnetDigital = function() {
   document.getElementById('carnetOwnerName').textContent = ownerName;
   document.getElementById('carnetOwnerPhone').textContent = ownerPhone;
 
-  // Avatar
+  // Avatar — intentar foto, si falla mostrar emoji
   var avatarEl = document.getElementById('carnetAvatar');
+  var EMOJI_MAP = {Perro:'🐶',Gato:'🐱',Conejo:'🐰',Pajaro:'🐦',Tortuga:'🐢',Pez:'🐟',Hamster:'🐹'};
+  var emoji = EMOJI_MAP[species] || '🐾';
   if (p.photo) {
-    avatarEl.innerHTML = '<img src="' + p.photo + '" style="width:100%;height:100%;object-fit:cover;">';
+    var img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = function() {
+      avatarEl.innerHTML = '';
+      avatarEl.appendChild(img);
+      img.style.cssText = 'width:100%;height:100%;object-fit:cover;border-radius:50%;';
+    };
+    img.onerror = function() { avatarEl.textContent = emoji; };
+    img.src = p.photo;
+    avatarEl.textContent = emoji; // mientras carga
   } else {
-    var EMOJI = {Perro:'🐶',Gato:'🐱',Conejo:'🐰',Pajaro:'🐦',Tortuga:'🐢',Pez:'🐟',Hamster:'🐹'};
-    avatarEl.textContent = EMOJI[species] || '🐾';
+    avatarEl.textContent = emoji;
   }
 
-  // Generar QR con datos de contacto
+  // Generar QR usando Google Charts API (más confiable)
   var qrBox = document.getElementById('carnetQRBox');
   qrBox.innerHTML = '';
-  var qrData = 'Mascota: ' + petName + '\nDueño: ' + ownerName + '\nTel: ' + ownerPhone;
+  var qrData = encodeURIComponent('Mascota: ' + petName + ' | Dueno: ' + ownerName + ' | Tel: ' + ownerPhone);
   document.getElementById('carnetQRText').textContent = 'Tel: ' + ownerPhone;
-  try {
-    new QRCode(qrBox, {
-      text: qrData,
-      width: 160,
-      height: 160,
-      colorDark: '#2C2416',
-      colorLight: '#ffffff',
-      correctLevel: QRCode.CorrectLevel.M
-    });
-  } catch(e) { qrBox.textContent = 'Error generando QR'; }
+  var qrImg = new Image();
+  qrImg.src = 'https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=' + qrData + '&color=2C2416&bgcolor=ffffff&margin=4';
+  qrImg.alt = 'QR Carnet';
+  qrImg.style.cssText = 'width:160px;height:160px;display:block;border-radius:8px;';
+  qrImg.onerror = function() {
+    // Fallback a qrcodejs
+    try {
+      new QRCode(qrBox, { text: decodeURIComponent(qrData), width:160, height:160, colorDark:'#2C2416', colorLight:'#ffffff' });
+    } catch(e) { qrBox.textContent = 'Sin conexión para generar QR'; }
+  };
+  qrBox.appendChild(qrImg);
 
   openModal('carnetModal');
 };
