@@ -2072,74 +2072,224 @@ function generarPDF() {
 
 // ===================== CARNET DIGITAL =====================
 
+// --- QR puro en canvas (sin librerías externas) ---
+function generarQRCanvas(text, size) {
+  // Usa qrcodejs sobre un div temporal y extrae el canvas/img
+  var tmp = document.createElement('div');
+  tmp.style.cssText = 'position:absolute;left:-9999px;top:-9999px;';
+  document.body.appendChild(tmp);
+  try {
+    var qr = new QRCode(tmp, { text: text, width: size, height: size, colorDark:'#2C2416', colorLight:'#ffffff', correctLevel: QRCode.CorrectLevel.M });
+    // qrcodejs crea un canvas y/o img
+    var cvs = tmp.querySelector('canvas');
+    if (cvs) {
+      var out = document.createElement('canvas');
+      out.width = size; out.height = size;
+      out.getContext('2d').drawImage(cvs, 0, 0, size, size);
+      document.body.removeChild(tmp);
+      return out;
+    }
+    var im = tmp.querySelector('img');
+    if (im) {
+      document.body.removeChild(tmp);
+      return im; // devuelve img si no hay canvas
+    }
+  } catch(e) {}
+  document.body.removeChild(tmp);
+  return null;
+}
+
+// Convierte URL externa a base64 via canvas (para html2canvas)
+function urlToBase64(url, cb) {
+  var img = new Image();
+  img.crossOrigin = 'anonymous';
+  img.onload = function() {
+    var c = document.createElement('canvas');
+    c.width = img.naturalWidth; c.height = img.naturalHeight;
+    c.getContext('2d').drawImage(img, 0, 0);
+    try { cb(c.toDataURL('image/jpeg', 0.9)); } catch(e) { cb(null); }
+  };
+  img.onerror = function() { cb(null); };
+  img.src = url + (url.indexOf('?') >= 0 ? '&' : '?') + 'cb=' + Date.now();
+}
+
 window.generarCarnetDigital = function() {
   var p = state.profile || {};
-  var petName   = p.name    || 'Sin nombre';
+  var petName   = p.name      || 'Sin nombre';
   var ownerName = p.ownerName || 'No especificado';
-  var ownerPhone= p.ownerPhone || 'No especificado';
-  var species   = p.species || '';
-  var breed     = p.breed   || '';
+  var ownerPhone= p.ownerPhone|| 'No especificado';
+  var species   = p.species   || '';
+  var breed     = p.breed     || '';
 
-  // Llenar datos en el modal
   document.getElementById('carnetPetName').textContent = petName;
-  var sub = [species, breed].filter(Boolean).join(' · ');
-  document.getElementById('carnetPetSub').textContent = sub;
-  document.getElementById('carnetOwnerName').textContent = ownerName;
+  document.getElementById('carnetPetSub').textContent  = [species, breed].filter(Boolean).join(' · ');
+  document.getElementById('carnetOwnerName').textContent  = ownerName;
   document.getElementById('carnetOwnerPhone').textContent = ownerPhone;
+  document.getElementById('carnetQRText').textContent     = 'Tel: ' + ownerPhone;
 
-  // Avatar — intentar foto, si falla mostrar emoji
+  // Avatar
   var avatarEl = document.getElementById('carnetAvatar');
   var EMOJI_MAP = {Perro:'🐶',Gato:'🐱',Conejo:'🐰',Pajaro:'🐦',Tortuga:'🐢',Pez:'🐟',Hamster:'🐹'};
   var emoji = EMOJI_MAP[species] || '🐾';
+  avatarEl.textContent = emoji;
+  avatarEl.style.fontSize = '32px';
   if (p.photo) {
-    var img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = function() {
-      avatarEl.innerHTML = '';
-      avatarEl.appendChild(img);
-      img.style.cssText = 'width:100%;height:100%;object-fit:cover;border-radius:50%;';
-    };
-    img.onerror = function() { avatarEl.textContent = emoji; };
-    img.src = p.photo;
-    avatarEl.textContent = emoji; // mientras carga
-  } else {
-    avatarEl.textContent = emoji;
+    // Cargar como base64 para que html2canvas también la capture
+    urlToBase64(p.photo, function(b64) {
+      var src = b64 || p.photo;
+      avatarEl.innerHTML = '<img src="' + src + '" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">';
+    });
   }
 
-  // Generar QR usando Google Charts API (más confiable)
+  // QR con qrcodejs sobre canvas
   var qrBox = document.getElementById('carnetQRBox');
   qrBox.innerHTML = '';
-  var qrData = encodeURIComponent('Mascota: ' + petName + ' | Dueno: ' + ownerName + ' | Tel: ' + ownerPhone);
-  document.getElementById('carnetQRText').textContent = 'Tel: ' + ownerPhone;
-  var qrImg = new Image();
-  qrImg.src = 'https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=' + qrData + '&color=2C2416&bgcolor=ffffff&margin=4';
-  qrImg.alt = 'QR Carnet';
-  qrImg.style.cssText = 'width:160px;height:160px;display:block;border-radius:8px;';
-  qrImg.onerror = function() {
-    // Fallback a qrcodejs
-    try {
-      new QRCode(qrBox, { text: decodeURIComponent(qrData), width:160, height:160, colorDark:'#2C2416', colorLight:'#ffffff' });
-    } catch(e) { qrBox.textContent = 'Sin conexión para generar QR'; }
-  };
-  qrBox.appendChild(qrImg);
+  var qrText = 'Mascota: ' + petName + ' | Dueno: ' + ownerName + ' | Tel: ' + ownerPhone;
+  var qrEl = generarQRCanvas(qrText, 160);
+  if (qrEl) {
+    qrEl.style.cssText = 'width:160px;height:160px;display:block;border-radius:8px;';
+    qrBox.appendChild(qrEl);
+  } else {
+    qrBox.innerHTML = '<div style="width:160px;height:160px;display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--mid);">Error QR</div>';
+  }
 
   openModal('carnetModal');
 };
 
 window.descargarCarnet = function() {
-  // Usar html2canvas si está disponible, sino avisar
-  var content = document.querySelector('#carnetModal .modal');
-  if (window.html2canvas) {
-    html2canvas(content, { scale: 2, backgroundColor: '#FAF6F0' }).then(function(canvas) {
-      var a = document.createElement('a');
-      a.download = (state.profile.name || 'mascota') + '_carnet.png';
-      a.href = canvas.toDataURL('image/png');
-      a.click();
-    });
+  // Dibujar el carnet directamente en canvas (evita problemas CORS de html2canvas)
+  var p = state.profile || {};
+  var petName    = p.name       || 'Sin nombre';
+  var ownerName  = p.ownerName  || 'No especificado';
+  var ownerPhone = p.ownerPhone || 'No especificado';
+  var species    = p.species    || '';
+  var breed      = p.breed      || '';
+  var EMOJI_MAP  = {Perro:'🐶',Gato:'🐱',Conejo:'🐰',Pajaro:'🐦',Tortuga:'🐢',Pez:'🐟',Hamster:'🐹'};
+  var emoji      = EMOJI_MAP[species] || '🐾';
+
+  function dibujar(photoB64) {
+    var W = 720, H = 440, pad = 40, r = 24;
+    var c = document.createElement('canvas');
+    c.width = W; c.height = H;
+    var ctx = c.getContext('2d');
+
+    // Fondo degradado
+    var grad = ctx.createLinearGradient(0, 0, W, H);
+    grad.addColorStop(0, '#8B5E3C');
+    grad.addColorStop(1, '#2C2416');
+    ctx.beginPath();
+    ctx.moveTo(r, 0); ctx.lineTo(W-r, 0); ctx.quadraticCurveTo(W, 0, W, r);
+    ctx.lineTo(W, H-r); ctx.quadraticCurveTo(W, H, W-r, H);
+    ctx.lineTo(r, H); ctx.quadraticCurveTo(0, H, 0, H-r);
+    ctx.lineTo(0, r); ctx.quadraticCurveTo(0, 0, r, 0);
+    ctx.closePath();
+    ctx.fillStyle = grad; ctx.fill();
+
+    // Pata de fondo decorativa
+    ctx.font = '180px serif';
+    ctx.fillStyle = 'rgba(255,255,255,0.05)';
+    ctx.fillText('🐾', W - 180, 170);
+
+    // Avatar círculo
+    var ax = pad, ay = pad, aw = 100;
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(ax + aw/2, ay + aw/2, aw/2, 0, Math.PI*2);
+    ctx.clip();
+    if (photoB64) {
+      var img = new Image();
+      img.src = photoB64;
+      ctx.drawImage(img, ax, ay, aw, aw);
+    } else {
+      ctx.fillStyle = '#F2E8D9';
+      ctx.fillRect(ax, ay, aw, aw);
+      ctx.font = '52px serif';
+      ctx.fillStyle = '#8B5E3C';
+      ctx.textAlign = 'center';
+      ctx.fillText(emoji, ax + aw/2, ay + aw/2 + 18);
+    }
+    ctx.restore();
+    // Borde avatar
+    ctx.beginPath();
+    ctx.arc(ax + aw/2, ay + aw/2, aw/2, 0, Math.PI*2);
+    ctx.strokeStyle = '#C49A6C'; ctx.lineWidth = 3; ctx.stroke();
+
+    // Etiqueta MASCOTA
+    ctx.textAlign = 'left';
+    ctx.font = '600 13px DM Sans, sans-serif';
+    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+    ctx.fillText('MASCOTA', ax + aw + 20, ay + 22);
+
+    // Nombre mascota
+    ctx.font = 'bold 42px Fraunces, Georgia, serif';
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText(petName, ax + aw + 20, ay + 66);
+
+    // Sub (especie · raza)
+    var sub = [species, breed].filter(Boolean).join(' · ');
+    ctx.font = '16px DM Sans, sans-serif';
+    ctx.fillStyle = 'rgba(255,255,255,0.6)';
+    ctx.fillText(sub, ax + aw + 20, ay + 92);
+
+    // Separador
+    ctx.beginPath();
+    ctx.moveTo(pad, ay + aw + 24);
+    ctx.lineTo(W - pad, ay + aw + 24);
+    ctx.strokeStyle = 'rgba(255,255,255,0.15)'; ctx.lineWidth = 1; ctx.stroke();
+
+    // Labels dueño / contacto
+    var ly = ay + aw + 60;
+    ctx.font = '600 12px DM Sans, sans-serif';
+    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+    ctx.fillText('DUEÑO', pad, ly);
+    ctx.fillText('CONTACTO', W/2, ly);
+
+    ctx.font = 'bold 22px DM Sans, sans-serif';
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText(ownerName,  pad, ly + 30);
+    ctx.fillText(ownerPhone, W/2, ly + 30);
+
+    // Logo PetPal
+    ctx.textAlign = 'right';
+    ctx.font = 'italic 15px Fraunces, Georgia, serif';
+    ctx.fillStyle = 'rgba(255,255,255,0.3)';
+    ctx.fillText('PetPal', W - pad, H - pad);
+
+    // QR — obtener del canvas ya generado en el modal
+    var qrCanvas = document.querySelector('#carnetQRBox canvas');
+    if (qrCanvas) {
+      var qrSize = 140;
+      var qrX = W - pad - qrSize, qrY = pad;
+      // Fondo blanco para el QR
+      ctx.fillStyle = 'white';
+      var qrR = 12;
+      ctx.beginPath();
+      ctx.moveTo(qrX - 8 + qrR, qrY - 8);
+      ctx.lineTo(qrX - 8 + qrSize + 16 - qrR, qrY - 8);
+      ctx.quadraticCurveTo(qrX - 8 + qrSize + 16, qrY - 8, qrX - 8 + qrSize + 16, qrY - 8 + qrR);
+      ctx.lineTo(qrX - 8 + qrSize + 16, qrY - 8 + qrSize + 16 - qrR);
+      ctx.quadraticCurveTo(qrX - 8 + qrSize + 16, qrY - 8 + qrSize + 16, qrX - 8 + qrSize + 16 - qrR, qrY - 8 + qrSize + 16);
+      ctx.lineTo(qrX - 8 + qrR, qrY - 8 + qrSize + 16);
+      ctx.quadraticCurveTo(qrX - 8, qrY - 8 + qrSize + 16, qrX - 8, qrY - 8 + qrSize + 16 - qrR);
+      ctx.lineTo(qrX - 8, qrY - 8 + qrR);
+      ctx.quadraticCurveTo(qrX - 8, qrY - 8, qrX - 8 + qrR, qrY - 8);
+      ctx.closePath();
+      ctx.fill();
+      ctx.drawImage(qrCanvas, qrX, qrY, qrSize, qrSize);
+    }
+
+    // Descargar
+    var a = document.createElement('a');
+    a.download = (petName || 'mascota').replace(/\s+/g,'_') + '_carnet.png';
+    a.href = c.toDataURL('image/png');
+    a.click();
+    toast('Carnet descargado!');
+  }
+
+  if (p.photo) {
+    urlToBase64(p.photo, function(b64) { dibujar(b64); });
   } else {
-    // Fallback: abrir ventana de impresión
-    window.print();
-    toast('Usá Ctrl+P para guardar como PDF o imagen');
+    dibujar(null);
   }
 };
 
