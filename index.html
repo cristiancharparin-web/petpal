@@ -1180,7 +1180,7 @@ window.loadPhoto = async function(event) {
       </div>
     </div>
     <div class="modal-actions" style="margin-top:20px;">
-      <button class="btn btn-ghost" onclick="document.getElementById('carnetModal').classList.remove('open')">Cerrar</button>
+      <button class="btn btn-ghost" id="btnCerrarCarnet">Cerrar</button>
       <button class="btn btn-primary" onclick="descargarCarnet()" style="background:var(--bark);">⬇️ Descargar imagen</button>
     </div>
   </div>
@@ -1217,6 +1217,9 @@ document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('btnPsLogout').addEventListener('click', function() { window.doLogout(); });
   document.getElementById('btnNavLogout').addEventListener('click', function() { window.doLogout(); });
   document.getElementById('btnChangePet').addEventListener('click', function() { window.goToPetSelector(); });
+  document.getElementById('btnCerrarCarnet').addEventListener('click', function() {
+    document.getElementById('carnetModal').classList.remove('open');
+  });
 });
 
 function emptyState() {
@@ -2214,7 +2217,7 @@ window.generarCarnetDigital = function() {
   // QR con callback asíncrono
   var qrBox = document.getElementById('carnetQRBox');
   qrBox.innerHTML = '<div style="width:160px;height:160px;display:flex;align-items:center;justify-content:center;color:var(--mid);font-size:12px;">Generando QR...</div>';
-  var qrText = 'tel:' + ownerPhone.replace(/\s+/g,'');
+  var qrText = 'BEGIN:VCARD\nVERSION:3.0\nFN:' + ownerName + '\nTEL:' + ownerPhone.replace(/\s+/g,'') + '\nNOTE:Dueno de ' + petName + '\nEND:VCARD';
   generarQRCanvas(qrText, 160, function(cvs) {
     qrBox.innerHTML = '';
     if (cvs) {
@@ -2358,7 +2361,7 @@ window.descargarCarnet = function() {
     toast('Carnet descargado!');
   }
 
-  var qrText2 = 'tel:' + ownerPhone.replace(/\s+/g,'');
+  var qrText2 = 'BEGIN:VCARD\nVERSION:3.0\nFN:' + ownerName + '\nTEL:' + ownerPhone.replace(/\s+/g,'') + '\nNOTE:Dueno de ' + petName + '\nEND:VCARD';
   function continuar(photoB64) {
     generarQRCanvas(qrText2, 160, function(qrCvs) {
       dibujar(photoB64, qrCvs);
