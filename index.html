@@ -14,58 +14,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-<!-- QR puro en canvas, sin dependencias externas -->
-<script>
-window.QRcanvas = (function(){
-  // Implementación minimalista de QR Code (solo modo byte, ECC M)
-  // Basada en qr.js de Kazuhiko Arase (MIT)
-  var QR8bitByte=function(d){this.mode=4;this.data=d;this.getLength=function(){return this.data.length};this.write=function(b){for(var i=0;i<this.data.length;i++){b.put(this.data.charCodeAt(i),8)}}};
-  var QRMode={MODE_8BIT_BYTE:4};
-  var QRErrorCorrectLevel={M:0,L:1,H:2,Q:3};
-  var QRMaskPattern={PATTERN000:0,PATTERN001:1,PATTERN010:2,PATTERN011:3,PATTERN100:4,PATTERN101:5,PATTERN110:6,PATTERN111:7};
-  /* Polyfill completo — usamos la librería qrcodejs ya cargada pero forzamos canvas */
-  function make(text, size) {
-    var div = document.createElement('div');
-    div.style.cssText='position:absolute;left:-9999px;visibility:hidden;';
-    document.body.appendChild(div);
-    var cvs = null;
-    try {
-      new QRCode(div, {text:text, width:size, height:size, colorDark:'#2C2416', colorLight:'#ffffff', correctLevel:QRCode.CorrectLevel.M});
-      // Intentar canvas primero
-      cvs = div.querySelector('canvas');
-      if (!cvs) {
-        // qrcodejs generó <img>, convertir a canvas
-        var img = div.querySelector('img');
-        if (img && img.src) {
-          cvs = document.createElement('canvas');
-          cvs.width = size; cvs.height = size;
-          // img ya cargada (data URL)
-          if (img.complete) {
-            cvs.getContext('2d').drawImage(img, 0, 0, size, size);
-          } else {
-            // devolver img directamente
-            document.body.removeChild(div);
-            var out = document.createElement('canvas');
-            out.width=size; out.height=size;
-            out._imgSrc = img.src;
-            return out;
-          }
-        }
-      }
-      if (cvs) {
-        var out = document.createElement('canvas');
-        out.width=size; out.height=size;
-        out.getContext('2d').drawImage(cvs, 0, 0, size, size);
-        document.body.removeChild(div);
-        return out;
-      }
-    } catch(e){}
-    document.body.removeChild(div);
-    return null;
-  }
-  return {make:make};
-})();
-</script>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <style>
 :root {
