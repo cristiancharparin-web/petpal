@@ -405,7 +405,7 @@ window.saveToFirestore = async function() {
   try {
     await setDoc(doc(db,'users',fbUser.uid,'pets',fbPetId), {
       profile:window.state.profile, weights:window.state.weights, health:window.state.health,
-      activities:window.state.activities, events:window.state.events, photos:window.state.photos||[]
+      activities:window.state.activities, events:window.state.events, photos:window.state.photos||[], driveFiles:window.state.driveFiles||[]
     });
   } catch(e) { console.error(e); }
 };
@@ -423,6 +423,7 @@ window.loadPetFromFirestore = async function(petId) {
     window.state.activities = d.activities || [];
     window.state.events     = d.events     || [];
     window.state.photos     = d.photos     || [];
+    window.state.driveFiles = d.driveFiles || [];
     fillForm(); renderAll();
     var p = state.profile;
     document.getElementById('activePetName').textContent = p.name || 'Mi mascota';
@@ -508,6 +509,11 @@ window.deletePetFS = async function(petId) {
       // Fotos de galería
       if (data.photos && data.photos.length) {
         data.photos.forEach(function(p) { if (p.driveId) driveIds.push(p.driveId); });
+      }
+
+      // Reportes y carnets subidos a Drive
+      if (data.driveFiles && data.driveFiles.length) {
+        data.driveFiles.forEach(function(f) { if (f.id) driveIds.push(f.id); });
       }
 
       // Borrar cada archivo de Drive
@@ -1209,7 +1215,7 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function emptyState() {
-  return { profile:{}, weights:[], health:[], activities:[], events:[], photos:[] };
+  return { profile:{}, weights:[], health:[], activities:[], events:[], photos:[], driveFiles:[] };
 }
 
 function switchTab(tab) {
@@ -1812,6 +1818,10 @@ async function ejecutarGeneracionReporte() {
     var driveResult = await subirPDFaDrive(pdfBlob, filename);
     document.getElementById('qrStatusMsg').textContent = 'Generando QR...';
     var shareUrl = 'https://drive.google.com/file/d/' + driveResult.id + '/view?usp=sharing';
+    // Guardar driveId del reporte para poder borrarlo al eliminar la mascota
+    if (!window.state.driveFiles) window.state.driveFiles = [];
+    window.state.driveFiles.push({ id: driveResult.id, type: 'reporte', date: new Date().toISOString() });
+    save();
     mostrarModalQR(shareUrl, petName, driveResult.id);
   } catch(e) {
     content.innerHTML = '<div style="text-align:center;padding:24px;color:var(--red);"><div style="font-size:36px;margin-bottom:10px;">⚠️</div><p style="font-weight:600;">Error generando el reporte</p><p style="font-size:13px;margin-top:8px;color:var(--mid);">' + (e.message || 'Error desconocido') + '</p></div>';
@@ -2295,6 +2305,10 @@ window.generarCarnetDigital = function() {
         .then(function(result) {
           var url = result.url;
           document.getElementById('carnetQRText').textContent = '';
+          // Guardar driveId del carnet para poder borrarlo al eliminar la mascota
+          if (!window.state.driveFiles) window.state.driveFiles = [];
+          window.state.driveFiles.push({ id: result.driveId, type: 'carnet', date: new Date().toISOString() });
+          save();
           generarQRCanvas(url, 160, function(cvs) {
             qrBox.innerHTML = '';
             if (cvs) { cvs.style.cssText='width:160px;height:160px;display:block;border-radius:8px;'; qrBox.appendChild(cvs); }
