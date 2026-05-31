@@ -1180,7 +1180,7 @@ window.loadPhoto = async function(event) {
       </div>
     </div>
     <div class="modal-actions" style="margin-top:20px;">
-      <button class="btn btn-ghost" onclick="closeModal('carnetModal')">Cerrar</button>
+      <button class="btn btn-ghost" onclick="document.getElementById('carnetModal').classList.remove('open')">Cerrar</button>
       <button class="btn btn-primary" onclick="descargarCarnet()" style="background:var(--bark);">⬇️ Descargar imagen</button>
     </div>
   </div>
@@ -2214,7 +2214,7 @@ window.generarCarnetDigital = function() {
   // QR con callback asíncrono
   var qrBox = document.getElementById('carnetQRBox');
   qrBox.innerHTML = '<div style="width:160px;height:160px;display:flex;align-items:center;justify-content:center;color:var(--mid);font-size:12px;">Generando QR...</div>';
-  var qrText = 'Mascota: ' + petName + ' | Dueno: ' + ownerName + ' | Tel: ' + ownerPhone;
+  var qrText = 'tel:' + ownerPhone.replace(/\s+/g,'');
   generarQRCanvas(qrText, 160, function(cvs) {
     qrBox.innerHTML = '';
     if (cvs) {
@@ -2358,7 +2358,7 @@ window.descargarCarnet = function() {
     toast('Carnet descargado!');
   }
 
-  var qrText2 = 'Mascota: ' + petName + ' | Dueno: ' + ownerName + ' | Tel: ' + ownerPhone;
+  var qrText2 = 'tel:' + ownerPhone.replace(/\s+/g,'');
   function continuar(photoB64) {
     generarQRCanvas(qrText2, 160, function(qrCvs) {
       dibujar(photoB64, qrCvs);
