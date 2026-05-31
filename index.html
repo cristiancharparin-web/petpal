@@ -1181,6 +1181,7 @@ window.loadPhoto = async function(event) {
     </div>
     <div class="modal-actions" style="margin-top:20px;">
       <button class="btn btn-ghost" id="btnCerrarCarnet">Cerrar</button>
+      <button class="btn btn-ghost" onclick="imprimirQR()" style="gap:6px;">🖨️ Imprimir QR</button>
       <button class="btn btn-primary" onclick="descargarCarnet()" style="background:var(--bark);">⬇️ Descargar imagen</button>
     </div>
   </div>
@@ -2238,43 +2239,54 @@ window.generarCarnetDigital = function() {
     ctx.fillText('🐾', W-160, 160);
 
     var ax = pad, ay = pad, aw = 90;
-    ctx.save();
-    ctx.beginPath(); ctx.arc(ax+aw/2,ay+aw/2,aw/2,0,Math.PI*2); ctx.clip();
-    if (photoB64) {
-      var img = new Image(); img.src = photoB64;
-      ctx.drawImage(img, ax, ay, aw, aw);
-    } else {
-      ctx.fillStyle='#F2E8D9'; ctx.fillRect(ax,ay,aw,aw);
-      ctx.font='44px serif'; ctx.fillStyle='#8B5E3C'; ctx.textAlign='center';
-      ctx.fillText(emoji, ax+aw/2, ay+aw/2+16);
+
+    function terminarDibujo(imgEl) {
+      ctx.save();
+      ctx.beginPath(); ctx.arc(ax+aw/2,ay+aw/2,aw/2,0,Math.PI*2); ctx.clip();
+      if (imgEl) {
+        ctx.drawImage(imgEl, ax, ay, aw, aw);
+      } else {
+        ctx.fillStyle='#F2E8D9'; ctx.fillRect(ax,ay,aw,aw);
+        ctx.font='44px serif'; ctx.fillStyle='#8B5E3C'; ctx.textAlign='center';
+        ctx.fillText(emoji, ax+aw/2, ay+aw/2+16);
+      }
+      ctx.restore();
+      ctx.beginPath(); ctx.arc(ax+aw/2,ay+aw/2,aw/2,0,Math.PI*2);
+      ctx.strokeStyle='#C49A6C'; ctx.lineWidth=3; ctx.stroke();
+
+      ctx.textAlign='left';
+      ctx.font='500 12px sans-serif'; ctx.fillStyle='rgba(255,255,255,0.5)';
+      ctx.fillText('MASCOTA', ax+aw+18, ay+20);
+      ctx.font='bold 38px Georgia,serif'; ctx.fillStyle='#fff';
+      ctx.fillText(petName, ax+aw+18, ay+60);
+      var sub=[species,breed].filter(Boolean).join(' · ');
+      ctx.font='15px sans-serif'; ctx.fillStyle='rgba(255,255,255,0.6)';
+      ctx.fillText(sub, ax+aw+18, ay+82);
+
+      ctx.beginPath(); ctx.moveTo(pad,ay+aw+20); ctx.lineTo(W-pad,ay+aw+20);
+      ctx.strokeStyle='rgba(255,255,255,0.15)'; ctx.lineWidth=1; ctx.stroke();
+
+      var ly=ay+aw+52;
+      ctx.font='600 11px sans-serif'; ctx.fillStyle='rgba(255,255,255,0.5)';
+      ctx.fillText('DUEÑO',pad,ly); ctx.fillText('CONTACTO',W/2,ly);
+      ctx.font='bold 20px sans-serif'; ctx.fillStyle='#fff';
+      ctx.fillText(ownerName,pad,ly+28); ctx.fillText(ownerPhone,W/2,ly+28);
+
+      ctx.textAlign='right';
+      ctx.font='italic 13px Georgia,serif'; ctx.fillStyle='rgba(255,255,255,0.3)';
+      ctx.fillText('PetPal', W-pad, H-16);
+
+      callback(cv);
     }
-    ctx.restore();
-    ctx.beginPath(); ctx.arc(ax+aw/2,ay+aw/2,aw/2,0,Math.PI*2);
-    ctx.strokeStyle='#C49A6C'; ctx.lineWidth=3; ctx.stroke();
 
-    ctx.textAlign='left';
-    ctx.font='500 12px sans-serif'; ctx.fillStyle='rgba(255,255,255,0.5)';
-    ctx.fillText('MASCOTA', ax+aw+18, ay+20);
-    ctx.font='bold 38px Georgia,serif'; ctx.fillStyle='#fff';
-    ctx.fillText(petName, ax+aw+18, ay+60);
-    var sub=[species,breed].filter(Boolean).join(' · ');
-    ctx.font='15px sans-serif'; ctx.fillStyle='rgba(255,255,255,0.6)';
-    ctx.fillText(sub, ax+aw+18, ay+82);
-
-    ctx.beginPath(); ctx.moveTo(pad,ay+aw+20); ctx.lineTo(W-pad,ay+aw+20);
-    ctx.strokeStyle='rgba(255,255,255,0.15)'; ctx.lineWidth=1; ctx.stroke();
-
-    var ly=ay+aw+52;
-    ctx.font='600 11px sans-serif'; ctx.fillStyle='rgba(255,255,255,0.5)';
-    ctx.fillText('DUEÑO',pad,ly); ctx.fillText('CONTACTO',W/2,ly);
-    ctx.font='bold 20px sans-serif'; ctx.fillStyle='#fff';
-    ctx.fillText(ownerName,pad,ly+28); ctx.fillText(ownerPhone,W/2,ly+28);
-
-    ctx.textAlign='right';
-    ctx.font='italic 13px Georgia,serif'; ctx.fillStyle='rgba(255,255,255,0.3)';
-    ctx.fillText('PetPal', W-pad, H-16);
-
-    callback(cv);
+    if (photoB64) {
+      var img = new Image();
+      img.onload = function() { terminarDibujo(img); };
+      img.onerror = function() { terminarDibujo(null); };
+      img.src = photoB64;
+    } else {
+      terminarDibujo(null);
+    }
   }
 
   // Subir a Drive y generar QR con la URL resultante
@@ -2404,6 +2416,33 @@ window.descargarCarnet = function() {
   } else {
     dibujar(null);
   }
+};
+
+window.imprimirQR = function() {
+  var qrCvs = document.querySelector('#carnetQRBox canvas');
+  if (!qrCvs) { toast('Primero generá el carnet'); return; }
+
+  var p = state.profile || {};
+  var petName   = p.name      || 'Mascota';
+  var ownerPhone= p.ownerPhone|| '';
+
+  // Abrir ventana de impresión solo con el QR
+  var win = window.open('', '_blank', 'width=400,height=500');
+  win.document.write('<html><head><title>QR - ' + petName + '</title><style>' +
+    'body{margin:0;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;font-family:sans-serif;background:#fff;}' +
+    '.qr-wrap{border:3px solid #2C2416;border-radius:16px;padding:20px;display:inline-block;margin-bottom:12px;}' +
+    'img{display:block;width:220px;height:220px;}' +
+    'p{margin:4px 0;font-size:14px;color:#444;text-align:center;}' +
+    'strong{font-size:18px;color:#2C2416;}' +
+    '@media print{body{margin:0;}button{display:none!important;}}' +
+    '</style></head><body>');
+  win.document.write('<div class="qr-wrap"><img src="' + qrCvs.toDataURL() + '"></div>');
+  win.document.write('<strong>' + petName + '</strong>');
+  win.document.write('<p>' + ownerPhone + '</p>');
+  win.document.write('<p style="font-size:11px;color:#aaa;margin-top:8px;">Escaneá para contactar al dueño</p>');
+  win.document.write('<br><button onclick="window.print()" style="padding:10px 24px;background:#8B5E3C;color:white;border:none;border-radius:8px;font-size:15px;cursor:pointer;margin-top:8px;">🖨️ Imprimir</button>');
+  win.document.write('</body></html>');
+  win.document.close();
 };
 
 // ===================== FIN CARNET =====================
