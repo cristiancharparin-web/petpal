@@ -1180,7 +1180,7 @@ window.loadPhoto = async function(event) {
       </div>
     </div>
     <div class="modal-actions" style="margin-top:20px;">
-      <button class="btn btn-ghost" id="btnCerrarCarnet">Cerrar</button>
+      <button class="btn btn-ghost" onclick="closeModal('carnetModal')">Cerrar</button>
       <button class="btn btn-ghost" onclick="imprimirQR()" style="gap:6px;">🖨️ Imprimir QR</button>
       <button class="btn btn-primary" onclick="descargarCarnet()" style="background:var(--bark);">⬇️ Descargar imagen</button>
     </div>
@@ -1218,9 +1218,7 @@ document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('btnPsLogout').addEventListener('click', function() { window.doLogout(); });
   document.getElementById('btnNavLogout').addEventListener('click', function() { window.doLogout(); });
   document.getElementById('btnChangePet').addEventListener('click', function() { window.goToPetSelector(); });
-  document.getElementById('btnCerrarCarnet').addEventListener('click', function() {
-    document.getElementById('carnetModal').classList.remove('open');
-  });
+
 });
 
 function emptyState() {
