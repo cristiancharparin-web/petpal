@@ -274,7 +274,7 @@ textarea{resize:vertical;min-height:80px;}
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, linkWithPopup } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import { getFirestore, doc, setDoc, getDoc, collection, getDocs, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
+import { getStorage, ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
 
 const FB = {
   apiKey:"AIzaSyD7YpJGIGif-1XwP0w7nOuvJ-Tp2VBMb6k",
@@ -492,6 +492,40 @@ window.loadAllPets = async function() {
 
 window.deletePetFS = async function(petId) {
   if (!fbUser) return;
+  try {
+    // Leer datos de la mascota antes de borrar
+    var snap = await getDoc(doc(db,'users',fbUser.uid,'pets',petId));
+    if (snap.exists()) {
+      var data = snap.data();
+      var filesToDelete = [];
+
+      // Foto de perfil
+      if (data.profile && data.profile.photo) {
+        filesToDelete.push(data.profile.photo);
+      }
+      // Fotos de galería
+      if (data.photos && data.photos.length) {
+        data.photos.forEach(function(p) { if (p.url) filesToDelete.push(p.url); });
+      }
+      // PDFs de salud
+      if (data.health && data.health.length) {
+        data.health.forEach(function(h) { if (h.pdfUrl) filesToDelete.push(h.pdfUrl); });
+      }
+
+      // Borrar cada archivo de Storage
+      for (var i = 0; i < filesToDelete.length; i++) {
+        try {
+          var fileRef = storageRef(storage, filesToDelete[i]);
+          await deleteObject(fileRef);
+        } catch(e) {
+          // Si el archivo ya no existe, ignorar
+          if (e.code !== 'storage/object-not-found') console.warn('No se pudo borrar:', filesToDelete[i], e.message);
+        }
+      }
+    }
+  } catch(e) { console.warn('Error limpiando storage:', e.message); }
+
+  // Borrar el documento de Firestore
   await deleteDoc(doc(db,'users',fbUser.uid,'pets',petId));
 };
 
