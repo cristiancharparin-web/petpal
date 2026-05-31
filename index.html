@@ -2341,11 +2341,32 @@ window.descargarCarnet = function() {
   var EMOJI_MAP  = {Perro:'🐶',Gato:'🐱',Conejo:'🐰',Pajaro:'🐦',Tortuga:'🐢',Pez:'🐟',Hamster:'🐹'};
   var emoji      = EMOJI_MAP[species] || '🐾';
 
-  function dibujar(photoB64) {
-    var W=720, H=380, pad=36, r=22;
+  toast('Generando imagen...');
+
+  // Paso 1: cargar foto si hay
+  function paso1(cb) {
+    if (p.photo) { urlToBase64(p.photo, cb); } else { cb(null); }
+  }
+
+  // Paso 2: generar QR (usa URL de Drive si ya está, sino vCard)
+  function paso2(cb) {
+    var qrCvsExistente = document.querySelector('#carnetQRBox canvas');
+    if (qrCvsExistente) { cb(qrCvsExistente); return; }
+    var qrText = 'BEGIN:VCARD
+VERSION:3.0
+FN:' + ownerName + '
+TEL:' + ownerPhone.replace(/\s+/g,'') + '
+END:VCARD';
+    generarQRCanvas(qrText, 160, cb);
+  }
+
+  // Paso 3: dibujar todo en canvas y descargar
+  function paso3(photoB64, qrCvs) {
+    var W=820, H=420, pad=40, r=22;
     var c=document.createElement('canvas'); c.width=W; c.height=H;
     var ctx=c.getContext('2d');
 
+    // Fondo degradado
     var grad=ctx.createLinearGradient(0,0,W,H);
     grad.addColorStop(0,'#8B5E3C'); grad.addColorStop(1,'#2C2416');
     ctx.beginPath();
@@ -2355,67 +2376,85 @@ window.descargarCarnet = function() {
     ctx.lineTo(0,r); ctx.quadraticCurveTo(0,0,r,0);
     ctx.closePath(); ctx.fillStyle=grad; ctx.fill();
 
+    // Pata decorativa
     ctx.font='160px serif'; ctx.fillStyle='rgba(255,255,255,0.05)';
-    ctx.fillText('🐾',W-160,160);
+    ctx.fillText('🐾', W-170, 170);
 
-    var ax=pad,ay=pad,aw=90;
-    ctx.save();
-    ctx.beginPath(); ctx.arc(ax+aw/2,ay+aw/2,aw/2,0,Math.PI*2); ctx.clip();
-    if (photoB64) {
-      var img=new Image(); img.src=photoB64; ctx.drawImage(img,ax,ay,aw,aw);
-    } else {
-      ctx.fillStyle='#F2E8D9'; ctx.fillRect(ax,ay,aw,aw);
-      ctx.font='44px serif'; ctx.fillStyle='#8B5E3C'; ctx.textAlign='center';
-      ctx.fillText(emoji,ax+aw/2,ay+aw/2+16);
-    }
-    ctx.restore();
-    ctx.beginPath(); ctx.arc(ax+aw/2,ay+aw/2,aw/2,0,Math.PI*2);
-    ctx.strokeStyle='#C49A6C'; ctx.lineWidth=3; ctx.stroke();
-
-    ctx.textAlign='left';
-    ctx.font='500 12px sans-serif'; ctx.fillStyle='rgba(255,255,255,0.5)';
-    ctx.fillText('MASCOTA',ax+aw+18,ay+20);
-    ctx.font='bold 38px Georgia,serif'; ctx.fillStyle='#fff';
-    ctx.fillText(petName,ax+aw+18,ay+60);
-    var sub=[species,breed].filter(Boolean).join(' · ');
-    ctx.font='15px sans-serif'; ctx.fillStyle='rgba(255,255,255,0.6)';
-    ctx.fillText(sub,ax+aw+18,ay+82);
-
-    ctx.beginPath(); ctx.moveTo(pad,ay+aw+20); ctx.lineTo(W-pad,ay+aw+20);
-    ctx.strokeStyle='rgba(255,255,255,0.15)'; ctx.lineWidth=1; ctx.stroke();
-
-    var ly=ay+aw+52;
-    ctx.font='600 11px sans-serif'; ctx.fillStyle='rgba(255,255,255,0.5)';
-    ctx.fillText('DUEÑO',pad,ly); ctx.fillText('CONTACTO',W/2,ly);
-    ctx.font='bold 20px sans-serif'; ctx.fillStyle='#fff';
-    ctx.fillText(ownerName,pad,ly+28); ctx.fillText(ownerPhone,W/2,ly+28);
-
-    ctx.textAlign='right';
-    ctx.font='italic 13px Georgia,serif'; ctx.fillStyle='rgba(255,255,255,0.3)';
-    ctx.fillText('PetPal',W-pad,H-16);
-
-    // QR del modal (ya tiene la URL de Drive)
-    var qrCvs=document.querySelector('#carnetQRBox canvas');
+    // QR primero (esquina superior derecha, espacio reservado)
+    var qs=140, qx=W-pad-qs, qy=pad;
     if (qrCvs) {
-      var qs=120,qx=W-pad-qs,qy=pad;
       ctx.fillStyle='white';
-      ctx.beginPath();
-      ctx.roundRect(qx-8,qy-8,qs+16,qs+16,10);
-      ctx.fill();
-      ctx.drawImage(qrCvs,qx,qy,qs,qs);
+      ctx.beginPath(); ctx.roundRect(qx-10,qy-10,qs+20,qs+20,12); ctx.fill();
+      ctx.drawImage(qrCvs, qx, qy, qs, qs);
     }
 
-    var a=document.createElement('a');
-    a.download=petName.replace(/\s+/g,'_')+'_carnet.png';
-    a.href=c.toDataURL('image/png'); a.click();
-    toast('Carnet descargado!');
+    // Avatar con onload correcto
+    var ax=pad, ay=pad, aw=100;
+
+    function dibujarResto(imgEl) {
+      ctx.save();
+      ctx.beginPath(); ctx.arc(ax+aw/2,ay+aw/2,aw/2,0,Math.PI*2); ctx.clip();
+      if (imgEl) {
+        ctx.drawImage(imgEl, ax, ay, aw, aw);
+      } else {
+        ctx.fillStyle='#F2E8D9'; ctx.fillRect(ax,ay,aw,aw);
+        ctx.font='50px serif'; ctx.fillStyle='#8B5E3C'; ctx.textAlign='center';
+        ctx.fillText(emoji, ax+aw/2, ay+aw/2+18);
+      }
+      ctx.restore();
+      ctx.beginPath(); ctx.arc(ax+aw/2,ay+aw/2,aw/2,0,Math.PI*2);
+      ctx.strokeStyle='#C49A6C'; ctx.lineWidth=3; ctx.stroke();
+
+      // Textos
+      ctx.textAlign='left';
+      ctx.font='500 13px sans-serif'; ctx.fillStyle='rgba(255,255,255,0.5)';
+      ctx.fillText('MASCOTA', ax+aw+20, ay+24);
+      ctx.font='bold 42px Georgia,serif'; ctx.fillStyle='#fff';
+      ctx.fillText(petName, ax+aw+20, ay+68);
+      var sub=[species,breed].filter(Boolean).join(' · ');
+      ctx.font='16px sans-serif'; ctx.fillStyle='rgba(255,255,255,0.6)';
+      ctx.fillText(sub, ax+aw+20, ay+94);
+
+      // Separador
+      ctx.beginPath(); ctx.moveTo(pad,ay+aw+24); ctx.lineTo(W-pad,ay+aw+24);
+      ctx.strokeStyle='rgba(255,255,255,0.15)'; ctx.lineWidth=1; ctx.stroke();
+
+      // Dueño / Contacto
+      var ly=ay+aw+60;
+      ctx.font='700 12px sans-serif'; ctx.fillStyle='rgba(255,255,255,0.5)';
+      ctx.fillText('DUEÑO', pad, ly); ctx.fillText('CONTACTO', W/2-80, ly);
+      ctx.font='bold 24px sans-serif'; ctx.fillStyle='#fff';
+      ctx.fillText(ownerName, pad, ly+32); ctx.fillText(ownerPhone, W/2-80, ly+32);
+
+      // Logo
+      ctx.textAlign='right';
+      ctx.font='italic 14px Georgia,serif'; ctx.fillStyle='rgba(255,255,255,0.3)';
+      ctx.fillText('PetPal', W-pad, H-18);
+
+      // Descargar
+      var a=document.createElement('a');
+      a.download=petName.replace(/\s+/g,'_')+'_carnet.png';
+      a.href=c.toDataURL('image/png'); a.click();
+      toast('✅ Carnet descargado!');
+    }
+
+    if (photoB64) {
+      var imgObj=new Image();
+      imgObj.onload = function() { dibujarResto(imgObj); };
+      imgObj.onerror = function() { dibujarResto(null); };
+      imgObj.src = photoB64;
+    } else {
+      dibujarResto(null);
+    }
   }
 
-  if (p.photo) {
-    urlToBase64(p.photo, function(b64) { dibujar(b64); });
-  } else {
-    dibujar(null);
-  }
+  paso1(function(photoB64) {
+    paso2(function(qrCvs) {
+      paso3(photoB64, qrCvs);
+    });
+  });
+};
+
 };
 
 window.imprimirQR = function() {
