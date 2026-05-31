@@ -530,7 +530,7 @@ window.loadPetFromFirestore = async function(petId) {
     if (galleryDrop) { galleryDrop.classList.remove('has-preview'); galleryDrop.innerHTML = '<div class="upload-icon">📷</div><div class="upload-hint">Toca para elegir una foto</div>'; }
     var galleryInput = document.getElementById('galleryPhotoInput');
     if (galleryInput) galleryInput.value = '';
-  } catch(e) { console.error(e); }
+  } catch(e) { console.error(e); toast('Error: ' + e.message); }
 };
 
 window.loadAllPets = async function() {
