@@ -14,6 +14,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <style>
 :root {
   --cream:#FAF6F0; --warm:#F2E8D9; --bark:#8B5E3C; --bark-light:#C49A6C;
@@ -839,7 +840,10 @@ window.loadPhoto = async function(event) {
 <div class="app-section active" id="section-perfil">
   <p class="page-title">Mi mascota</p>
   <p class="page-subtitle">Toda la info en un solo lugar</p>
-  <div style="display:flex;justify-content:flex-end;margin-bottom:16px;">
+  <div style="display:flex;justify-content:flex-end;gap:10px;margin-bottom:16px;">
+    <button class="btn btn-primary" onclick="generarCarnetDigital()" id="btnCarnet" style="background:var(--bark);gap:8px;">
+      <span>🏷️</span> Carnet digital
+    </button>
     <button class="btn btn-primary" onclick="generarReporteQR()" id="btnGenerarQR" style="background:var(--moss);gap:8px;">
       <span>📄</span> Generar reporte QR
     </button>
@@ -887,6 +891,8 @@ window.loadPhoto = async function(event) {
     </div>
     <div class="card">
       <div class="card-title">📋 Datos adicionales</div>
+      <div class="field-block"><label>Nombre del dueño</label><input type="text" id="ownerName" placeholder="Ej: Juan Perez"></div>
+      <div class="field-block"><label>Teléfono del dueño</label><input type="text" id="ownerPhone" placeholder="Ej: +54 261 555-0000"></div>
       <div class="field-block"><label>Numero de microchip</label><input type="text" id="petChip" placeholder="Opcional"></div>
       <div class="field-block"><label>Veterinario</label><input type="text" id="petVet" placeholder="Nombre del veterinario"></div>
       <div class="field-block"><label>Telefono veterinario</label><input type="text" id="petVetPhone" placeholder="Ej: +54 261 ..."></div>
@@ -1081,7 +1087,53 @@ window.loadPhoto = async function(event) {
 
 <div class="toast" id="toast"></div>
 
-<!-- MODAL QR REPORTE -->
+<!-- MODAL CARNET DIGITAL -->
+<div class="modal-overlay" id="carnetModal">
+  <div class="modal" style="max-width:420px;">
+    <div class="modal-title">🏷️ Carnet digital</div>
+    <div id="carnetContent">
+      <div style="background:linear-gradient(135deg,var(--bark) 0%,var(--dark) 100%);border-radius:18px;padding:28px 24px;color:white;position:relative;overflow:hidden;margin-bottom:18px;">
+        <!-- Decoración de fondo -->
+        <div style="position:absolute;top:-20px;right:-20px;font-size:100px;opacity:0.07;line-height:1;">🐾</div>
+        <!-- Header -->
+        <div style="display:flex;align-items:center;gap:14px;margin-bottom:20px;">
+          <div id="carnetAvatar" style="width:64px;height:64px;border-radius:50%;background:var(--warm);border:3px solid var(--bark-light);display:flex;align-items:center;justify-content:center;font-size:32px;overflow:hidden;flex-shrink:0;"></div>
+          <div>
+            <div style="font-size:10px;text-transform:uppercase;letter-spacing:0.12em;opacity:0.6;margin-bottom:3px;">Mascota</div>
+            <div id="carnetPetName" style="font-family:'Fraunces',serif;font-size:24px;font-weight:700;line-height:1.1;"></div>
+            <div id="carnetPetSub" style="font-size:12px;opacity:0.65;margin-top:3px;"></div>
+          </div>
+        </div>
+        <!-- Separador -->
+        <div style="border-top:1px solid rgba(255,255,255,0.15);margin-bottom:16px;"></div>
+        <!-- Datos del dueño -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:4px;">
+          <div>
+            <div style="font-size:10px;text-transform:uppercase;letter-spacing:0.1em;opacity:0.55;margin-bottom:3px;">Dueño</div>
+            <div id="carnetOwnerName" style="font-size:14px;font-weight:600;"></div>
+          </div>
+          <div>
+            <div style="font-size:10px;text-transform:uppercase;letter-spacing:0.1em;opacity:0.55;margin-bottom:3px;">Contacto</div>
+            <div id="carnetOwnerPhone" style="font-size:14px;font-weight:600;"></div>
+          </div>
+        </div>
+        <!-- Logo -->
+        <div style="position:absolute;bottom:14px;right:18px;font-family:'Fraunces',serif;font-size:12px;opacity:0.35;">PetPal</div>
+      </div>
+      <!-- QR -->
+      <div style="text-align:center;">
+        <div style="font-size:12px;color:var(--mid);margin-bottom:10px;">Escaneá para ver los datos de contacto</div>
+        <div id="carnetQRBox" style="display:inline-block;background:white;border:3px solid var(--bark-light);border-radius:14px;padding:14px;box-shadow:var(--shadow);"></div>
+        <div style="font-size:11px;color:var(--mid);margin-top:10px;padding:0 8px;word-break:break-all;" id="carnetQRText"></div>
+      </div>
+    </div>
+    <div class="modal-actions" style="margin-top:20px;">
+      <button class="btn btn-ghost" onclick="closeModal('carnetModal')">Cerrar</button>
+      <button class="btn btn-primary" onclick="descargarCarnet()" style="background:var(--bark);">⬇️ Descargar imagen</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="qrReportModal">
   <div class="modal" style="max-width:520px;">
     <div class="modal-title">📄 Reporte de mascota</div>
@@ -1146,8 +1198,8 @@ function renderAll() {
 
 function fillForm() {
   var p = state.profile || {};
-  var fields = ['petName','petSpecies','petBreed','petBirth','petSex','petColor','petChip','petVet','petVetPhone','petCastrated','petAllergies'];
-  var keys   = ['name','species','breed','birth','sex','color','chip','vet','vetPhone','castrated','allergies'];
+  var fields = ['petName','petSpecies','petBreed','petBirth','petSex','petColor','ownerName','ownerPhone','petChip','petVet','petVetPhone','petCastrated','petAllergies'];
+  var keys   = ['name','species','breed','birth','sex','color','ownerName','ownerPhone','chip','vet','vetPhone','castrated','allergies'];
   for (var i=0; i<fields.length; i++) {
     var el = document.getElementById(fields[i]);
     if (el) el.value = p[keys[i]] !== undefined ? p[keys[i]] : '';
@@ -1172,6 +1224,8 @@ window.saveProfile = function() {
     birth:     document.getElementById('petBirth').value,
     sex:       document.getElementById('petSex').value,
     color:     document.getElementById('petColor').value,
+    ownerName: document.getElementById('ownerName').value,
+    ownerPhone:document.getElementById('ownerPhone').value,
     chip:      document.getElementById('petChip').value,
     vet:       document.getElementById('petVet').value,
     vetPhone:  document.getElementById('petVetPhone').value,
@@ -2016,7 +2070,71 @@ function generarPDF() {
   });
 }
 
-// ===================== FIN REPORTE =====================
+// ===================== CARNET DIGITAL =====================
+
+window.generarCarnetDigital = function() {
+  var p = state.profile || {};
+  var petName   = p.name    || 'Sin nombre';
+  var ownerName = p.ownerName || 'No especificado';
+  var ownerPhone= p.ownerPhone || 'No especificado';
+  var species   = p.species || '';
+  var breed     = p.breed   || '';
+
+  // Llenar datos en el modal
+  document.getElementById('carnetPetName').textContent = petName;
+  var sub = [species, breed].filter(Boolean).join(' · ');
+  document.getElementById('carnetPetSub').textContent = sub;
+  document.getElementById('carnetOwnerName').textContent = ownerName;
+  document.getElementById('carnetOwnerPhone').textContent = ownerPhone;
+
+  // Avatar
+  var avatarEl = document.getElementById('carnetAvatar');
+  if (p.photo) {
+    avatarEl.innerHTML = '<img src="' + p.photo + '" style="width:100%;height:100%;object-fit:cover;">';
+  } else {
+    var EMOJI = {Perro:'🐶',Gato:'🐱',Conejo:'🐰',Pajaro:'🐦',Tortuga:'🐢',Pez:'🐟',Hamster:'🐹'};
+    avatarEl.textContent = EMOJI[species] || '🐾';
+  }
+
+  // Generar QR con datos de contacto
+  var qrBox = document.getElementById('carnetQRBox');
+  qrBox.innerHTML = '';
+  var qrData = 'Mascota: ' + petName + '\nDueño: ' + ownerName + '\nTel: ' + ownerPhone;
+  document.getElementById('carnetQRText').textContent = 'Tel: ' + ownerPhone;
+  try {
+    new QRCode(qrBox, {
+      text: qrData,
+      width: 160,
+      height: 160,
+      colorDark: '#2C2416',
+      colorLight: '#ffffff',
+      correctLevel: QRCode.CorrectLevel.M
+    });
+  } catch(e) { qrBox.textContent = 'Error generando QR'; }
+
+  openModal('carnetModal');
+};
+
+window.descargarCarnet = function() {
+  // Usar html2canvas si está disponible, sino avisar
+  var content = document.querySelector('#carnetModal .modal');
+  if (window.html2canvas) {
+    html2canvas(content, { scale: 2, backgroundColor: '#FAF6F0' }).then(function(canvas) {
+      var a = document.createElement('a');
+      a.download = (state.profile.name || 'mascota') + '_carnet.png';
+      a.href = canvas.toDataURL('image/png');
+      a.click();
+    });
+  } else {
+    // Fallback: abrir ventana de impresión
+    window.print();
+    toast('Usá Ctrl+P para guardar como PDF o imagen');
+  }
+};
+
+// ===================== FIN CARNET =====================
+
+
 
 
 function formatDate(str) {
