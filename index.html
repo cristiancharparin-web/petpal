@@ -2350,11 +2350,7 @@ window.descargarCarnet = function() {
   function paso2(cb) {
     var qrCvsExistente = document.querySelector('#carnetQRBox canvas');
     if (qrCvsExistente) { cb(qrCvsExistente); return; }
-    var qrText = 'BEGIN:VCARD
-VERSION:3.0
-FN:' + ownerName + '
-TEL:' + ownerPhone.replace(/\s+/g,'') + '
-END:VCARD';
+    var qrText = 'BEGIN:VCARD\nVERSION:3.0\nFN:' + ownerName + '\nTEL:' + ownerPhone.replace(/\s+/g,'') + '\nEND:VCARD';
     generarQRCanvas(qrText, 160, cb);
   }
 
@@ -2451,8 +2447,6 @@ END:VCARD';
       paso3(photoB64, qrCvs);
     });
   });
-};
-
 };
 
 window.imprimirQR = function() {
