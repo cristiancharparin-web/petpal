@@ -752,11 +752,25 @@ window.loadPhoto = async function(event) {
     </button>
     <p style="font-size:12px;color:var(--mid);text-align:center;margin-bottom:16px;">Necesitamos tu cuenta de Google para guardar tus fotos y archivos en Drive.</p>
     <div class="login-error" id="loginError"></div>
-    <div id="installBanner" style="display:none;margin-top:16px;text-align:center;">
-      <button id="installBtn" style="background:var(--moss);color:white;border:none;border-radius:14px;padding:11px 24px;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;cursor:pointer;width:100%;display:flex;align-items:center;justify-content:center;gap:8px;">
+    <div style="margin-top:16px;text-align:center;">
+      <button id="installBtn" onclick="handleInstallClick()" style="background:var(--moss);color:white;border:none;border-radius:14px;padding:11px 24px;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;cursor:pointer;width:100%;display:flex;align-items:center;justify-content:center;gap:8px;">
         📲 Instalar PetPal en tu celular
       </button>
     </div>
+  </div>
+</div>
+
+<!-- MODAL INSTRUCCIONES INSTALACION iOS -->
+<div class="modal-overlay" id="iosInstallModal">
+  <div class="modal" style="max-width:340px;text-align:center;">
+    <div style="font-size:40px;margin-bottom:12px;">📲</div>
+    <h3 style="font-family:'Fraunces',serif;font-size:20px;margin-bottom:16px;">Instalar en iPhone</h3>
+    <div style="text-align:left;font-size:14px;color:var(--dark);line-height:1.8;margin-bottom:20px;">
+      <p><strong>1.</strong> Tocá el ícono de <strong>Compartir</strong> ⬆️ (abajo en Safari)</p>
+      <p><strong>2.</strong> Deslizá y elegí <strong>"Agregar a pantalla de inicio"</strong></p>
+      <p><strong>3.</strong> Tocá <strong>"Agregar"</strong> arriba a la derecha</p>
+    </div>
+    <button class="btn btn-primary" style="width:100%;" onclick="closeModal('iosInstallModal')">Entendido</button>
   </div>
 </div>
 
@@ -2457,42 +2471,52 @@ for (var i=0; i<dates.length; i++) { if (!dates[i].value) dates[i].value = today
 <script>
 var deferredPrompt = null;
 
+function isStandaloneMode() {
+  return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+}
+function isIOS() {
+  return /iphone|ipad|ipod/i.test(navigator.userAgent);
+}
+
 window.addEventListener('beforeinstallprompt', function(e) {
   e.preventDefault();
   deferredPrompt = e;
-  document.getElementById('installBanner').style.display = 'block';
 });
 
+window.handleInstallClick = function() {
+  if (deferredPrompt) {
+    // Android/Chrome: disparar el instalador nativo
+    deferredPrompt.prompt();
+    deferredPrompt.userChoice.then(function() { deferredPrompt = null; });
+  } else if (isIOS()) {
+    // iPhone/Safari: no existe instalador nativo, mostramos instrucciones
+    document.getElementById('iosInstallModal').classList.add('open');
+  } else {
+    toast('Abrí este link desde Chrome en tu celular para instalar la app');
+  }
+};
+
 document.addEventListener('DOMContentLoaded', function() {
-  var btn = document.getElementById('installBtn');
-  if (btn) {
-    btn.addEventListener('click', function() {
-      if (deferredPrompt) {
-        deferredPrompt.prompt();
-        deferredPrompt.userChoice.then(function(result) {
-          if (result.outcome === 'accepted') {
-            document.getElementById('installBanner').style.display = 'none';
-          }
-          deferredPrompt = null;
-        });
-      }
-    });
+  // Si ya está instalada (corriendo como app), ocultamos el botón
+  if (isStandaloneMode()) {
+    var btn = document.getElementById('installBtn');
+    if (btn) btn.style.display = 'none';
   }
 });
 
 window.addEventListener('appinstalled', function() {
-  document.getElementById('installBanner').style.display = 'none';
   deferredPrompt = null;
+  var btn = document.getElementById('installBtn');
+  if (btn) btn.style.display = 'none';
 });
 
-// Service Worker deshabilitado en este entorno
-// if ('serviceWorker' in navigator) {
-//   window.addEventListener('load', function() {
-//     navigator.serviceWorker.register('/petpal/sw.js')
-//       .then(function(reg) { console.log('SW registrado:', reg.scope); })
-//       .catch(function(e) { console.log('SW error:', e); });
-//   });
-// }
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function() {
+    navigator.serviceWorker.register('/petpal/sw.js')
+      .then(function(reg) { console.log('SW registrado:', reg.scope); })
+      .catch(function(e) { console.log('SW error:', e); });
+  });
+}
 </script>
 </body>
 </html>
