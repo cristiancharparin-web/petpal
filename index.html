@@ -272,7 +272,7 @@ textarea{resize:vertical;min-height:80px;}
 <!-- FIREBASE MODULE -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, linkWithPopup } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { getAuth, signOut, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, linkWithPopup } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import { getFirestore, doc, setDoc, getDoc, collection, getDocs, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
 
@@ -296,10 +296,7 @@ let googleAccessToken = null;
 const EMOJI = {Perro:'🐶',Gato:'🐱',Conejo:'🐰',Pajaro:'🐦',Tortuga:'🐢',Pez:'🐟',Hamster:'🐹',Otro:'🐾'};
 
 // Siempre cerrar sesión al abrir la app para garantizar privacidad
-signOut(auth).then(function() {
-  document.getElementById('loginEmail').value = '';
-  document.getElementById('loginPass').value = '';
-}).catch(function(){});
+signOut(auth).catch(function(){});
 
 var handlingRedirect = false;
 
@@ -327,39 +324,6 @@ onAuthStateChanged(auth, async function(user) {
   }
 });
 
-window.doLogin = async function() {
-  var email = document.getElementById('loginEmail').value.trim();
-  var pass  = document.getElementById('loginPass').value;
-  var btn   = document.getElementById('loginBtn');
-  var err   = document.getElementById('loginError');
-  err.textContent = '';
-  if (!email || !pass) { err.textContent = 'Completa correo y contrasena.'; return; }
-  btn.disabled = true; btn.textContent = 'Ingresando...';
-  try { await signInWithEmailAndPassword(auth, email, pass); }
-  catch(e) { err.textContent = fbErr(e.code); btn.disabled=false; btn.textContent='Ingresar'; }
-};
-
-window.doRegister = async function() {
-  var email = document.getElementById('loginEmail').value.trim();
-  var pass  = document.getElementById('loginPass').value;
-  var btn   = document.getElementById('loginBtn');
-  var err   = document.getElementById('loginError');
-  err.textContent = '';
-  if (!email || !pass) { err.textContent = 'Completa correo y contrasena.'; return; }
-  if (pass.length < 6) { err.textContent = 'La contrasena debe tener al menos 6 caracteres.'; return; }
-  btn.disabled = true; btn.textContent = 'Creando cuenta...';
-  try { await createUserWithEmailAndPassword(auth, email, pass); }
-  catch(e) { err.textContent = fbErr(e.code); btn.disabled=false; btn.textContent='Crear cuenta'; }
-};
-
-window.doReset = async function() {
-  var email = document.getElementById('loginEmail').value.trim();
-  var err   = document.getElementById('loginError');
-  if (!email) { err.textContent = 'Ingresa tu correo primero.'; return; }
-  try { await sendPasswordResetEmail(auth, email); err.style.color='#4A7C59'; err.textContent='Revisa tu correo!'; }
-  catch(e) { err.textContent = fbErr(e.code); }
-};
-
 window.doGoogleLogin = async function() {
   var err = document.getElementById('loginError');
   err.textContent = '';
@@ -380,12 +344,7 @@ window.doGoogleLogin = async function() {
 window.doLogout = async function() {
   await signOut(auth);
   fbPetId = null; window.fbPetId = null; googleAccessToken = null; window.googleAccessToken = null;
-  document.getElementById('loginEmail').value='';
-  document.getElementById('loginPass').value='';
   document.getElementById('loginError').textContent='';
-  document.getElementById('loginBtn').disabled=false;
-  document.getElementById('loginBtn').textContent='Ingresar';
-  if (window.switchTab) window.switchTab('login');
 };
 
 // Exponer al scope global para conectarDriveYGenerar
@@ -786,25 +745,13 @@ window.loadPhoto = async function(event) {
       <h1>Pet<span>Pal</span></h1>
       <p>El diario de salud de tu mascota</p>
     </div>
-    <!-- Botón Google -->
-    <button onclick="doGoogleLogin()" style="width:100%;padding:12px;background:white;color:#3c4043;border:1.5px solid #dadce0;border-radius:14px;font-family:'DM Sans',sans-serif;font-size:15px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:16px;transition:all 0.2s;" onmouseover="this.style.background='#f8f9fa'" onmouseout="this.style.background='white'">
+    <!-- Botón Google (único método de acceso: la app necesita el token de Drive para guardar fotos y archivos) -->
+    <button onclick="doGoogleLogin()" style="width:100%;padding:12px;background:white;color:#3c4043;border:1.5px solid #dadce0;border-radius:14px;font-family:'DM Sans',sans-serif;font-size:15px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:8px;transition:all 0.2s;" onmouseover="this.style.background='#f8f9fa'" onmouseout="this.style.background='white'">
       <svg width="20" height="20" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.08 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-3.59-13.46-8.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
       Continuar con Google
     </button>
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
-      <div style="flex:1;height:1px;background:var(--border);"></div>
-      <span style="font-size:12px;color:var(--mid);">o usá email</span>
-      <div style="flex:1;height:1px;background:var(--border);"></div>
-    </div>
-    <div class="login-tabs">
-      <button class="login-tab active" id="tabLogin" onclick="switchTab('login')">Iniciar sesion</button>
-      <button class="login-tab" id="tabRegister" onclick="switchTab('register')">Crear cuenta</button>
-    </div>
-    <div class="field-block"><label>Correo electronico</label><input type="text" id="loginEmail" placeholder="tu@correo.com" autocomplete="off"></div>
-    <div class="field-block"><label>Contrasena</label><input type="password" id="loginPass" placeholder="••••••••" autocomplete="new-password"></div>
+    <p style="font-size:12px;color:var(--mid);text-align:center;margin-bottom:16px;">Necesitamos tu cuenta de Google para guardar tus fotos y archivos en Drive.</p>
     <div class="login-error" id="loginError"></div>
-    <button class="btn-login" id="loginBtn">Ingresar</button>
-    <div class="login-footer"><button id="btnReset">Olvidaste tu contrasena?</button></div>
     <div id="installBanner" style="display:none;margin-top:16px;text-align:center;">
       <button id="installBtn" style="background:var(--moss);color:white;border:none;border-radius:14px;padding:11px 24px;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;cursor:pointer;width:100%;display:flex;align-items:center;justify-content:center;gap:8px;">
         📲 Instalar PetPal en tu celular
@@ -1197,17 +1144,12 @@ window.loadPhoto = async function(event) {
 </div><!-- /appScreen -->
 
 <script>
-var currentTab = 'login';
 var lightboxIndex = -1;
 window.state = { profile:{}, weights:[], health:[], activities:[], events:[], photos:[] };
 var state = window.state;
 
 // Listeners para funciones del módulo Firebase (evita problemas de scope con type="module")
 document.addEventListener('DOMContentLoaded', function() {
-  document.getElementById('loginBtn').addEventListener('click', function() {
-    currentTab === 'login' ? window.doLogin() : window.doRegister();
-  });
-  document.getElementById('btnReset').addEventListener('click', function() { window.doReset(); });
   document.getElementById('btnPsLogout').addEventListener('click', function() { window.doLogout(); });
   document.getElementById('btnNavLogout').addEventListener('click', function() { window.doLogout(); });
   document.getElementById('btnChangePet').addEventListener('click', function() { window.goToPetSelector(); });
@@ -1216,14 +1158,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
 function emptyState() {
   return { profile:{}, weights:[], health:[], activities:[], events:[], photos:[], driveFiles:[] };
-}
-
-function switchTab(tab) {
-  currentTab = tab;
-  document.getElementById('tabLogin').classList.toggle('active', tab==='login');
-  document.getElementById('tabRegister').classList.toggle('active', tab==='register');
-  document.getElementById('loginBtn').textContent = tab==='login' ? 'Ingresar' : 'Crear cuenta';
-  document.getElementById('loginError').textContent = '';
 }
 
 window.showSection = function(id, btn) {
