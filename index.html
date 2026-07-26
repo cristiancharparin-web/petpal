@@ -862,66 +862,75 @@ window.loadPhoto = async function(event) {
 <div class="app-section active" id="section-perfil">
   <p class="page-title">Mi mascota</p>
   <p class="page-subtitle">Toda la info en un solo lugar</p>
-  <div style="display:flex;justify-content:flex-end;gap:10px;margin-bottom:16px;">
+  <div style="display:flex;justify-content:flex-end;gap:10px;margin-bottom:16px;flex-wrap:wrap;" id="perfilButtonRow">
     <button class="btn btn-primary" onclick="generarCarnetDigital()" id="btnCarnet" style="background:var(--bark);gap:8px;">
       <span>🏷️</span> Carnet digital
     </button>
     <button class="btn btn-primary" onclick="generarReporteQR()" id="btnGenerarQR" style="background:var(--moss);gap:8px;">
       <span>📄</span> Generar reporte QR
     </button>
+    <button class="btn btn-primary" onclick="abrirPerfilDetalle()" id="btnIngresarPerfil" style="background:var(--gold);gap:8px;">
+      <span>👤</span> Ingresar
+    </button>
   </div>
-  <div class="profile-hero" id="profileHero">
-    <div class="avatar-ring" onclick="document.getElementById('photoInput').click()">
-      <span id="avatarEmoji">🐾</span>
-      <img id="avatarImg" src="" alt="" style="display:none;">
+
+  <div id="perfilDetalle" style="display:none;">
+    <div class="profile-hero" id="profileHero">
+      <div class="avatar-ring" onclick="document.getElementById('photoInput').click()">
+        <span id="avatarEmoji">🐾</span>
+        <img id="avatarImg" src="" alt="" style="display:none;">
+      </div>
+      <input type="file" id="photoInput" accept="image/*" style="display:none" onchange="loadPhoto(event)">
+      <div class="profile-info">
+        <h2 id="heroName">Tu mascota</h2>
+        <p id="heroSub">Completa el perfil para empezar</p>
+        <div class="profile-chips" id="heroChips"></div>
+      </div>
     </div>
-    <input type="file" id="photoInput" accept="image/*" style="display:none" onchange="loadPhoto(event)">
-    <div class="profile-info">
-      <h2 id="heroName">Tu mascota</h2>
-      <p id="heroSub">Completa el perfil para empezar</p>
-      <div class="profile-chips" id="heroChips"></div>
-    </div>
-  </div>
-  <div class="profile-grid">
-    <div class="card">
-      <div class="card-title">🐶 Datos basicos</div>
-      <div class="field-block"><label>Nombre</label><input type="text" id="petName" placeholder="Ej: Luna" oninput="updateHero()"></div>
-      <div class="field-group">
-        <div class="field-block"><label>Especie</label>
-          <select id="petSpecies" onchange="updateEmoji()">
-            <option value="">Elegir...</option>
-            <option value="Perro">🐶 Perro</option>
-            <option value="Gato">🐱 Gato</option>
-            <option value="Conejo">🐰 Conejo</option>
-            <option value="Pajaro">🐦 Pajaro</option>
-            <option value="Tortuga">🐢 Tortuga</option>
-            <option value="Pez">🐟 Pez</option>
-            <option value="Hamster">🐹 Hamster</option>
-            <option value="Otro">🐾 Otro</option>
-          </select>
+    <div class="profile-grid">
+      <div class="card">
+        <div class="card-title">🐶 Datos basicos</div>
+        <div class="field-block"><label>Nombre</label><input type="text" id="petName" placeholder="Ej: Luna" oninput="updateHero()"></div>
+        <div class="field-group">
+          <div class="field-block"><label>Especie</label>
+            <select id="petSpecies" onchange="updateEmoji()">
+              <option value="">Elegir...</option>
+              <option value="Perro">🐶 Perro</option>
+              <option value="Gato">🐱 Gato</option>
+              <option value="Conejo">🐰 Conejo</option>
+              <option value="Pajaro">🐦 Pajaro</option>
+              <option value="Tortuga">🐢 Tortuga</option>
+              <option value="Pez">🐟 Pez</option>
+              <option value="Hamster">🐹 Hamster</option>
+              <option value="Otro">🐾 Otro</option>
+            </select>
+          </div>
+          <div class="field-block"><label>Raza</label><input type="text" id="petBreed" placeholder="Ej: Labrador" oninput="updateHero()"></div>
         </div>
-        <div class="field-block"><label>Raza</label><input type="text" id="petBreed" placeholder="Ej: Labrador" oninput="updateHero()"></div>
-      </div>
-      <div class="field-group">
-        <div class="field-block"><label>Fecha de nac.</label><input type="date" id="petBirth" oninput="updateHero()"></div>
-        <div class="field-block"><label>Sexo</label>
-          <select id="petSex"><option value="">Elegir...</option><option value="Macho">Macho</option><option value="Hembra">Hembra</option></select>
+        <div class="field-group">
+          <div class="field-block"><label>Fecha de nac.</label><input type="date" id="petBirth" oninput="updateHero()"></div>
+          <div class="field-block"><label>Sexo</label>
+            <select id="petSex"><option value="">Elegir...</option><option value="Macho">Macho</option><option value="Hembra">Hembra</option></select>
+          </div>
         </div>
+        <div class="field-block"><label>Color / Pelaje</label><input type="text" id="petColor" placeholder="Ej: Marron con blanco"></div>
       </div>
-      <div class="field-block"><label>Color / Pelaje</label><input type="text" id="petColor" placeholder="Ej: Marron con blanco"></div>
-      <button class="btn btn-primary" onclick="saveProfile()">Guardar perfil</button>
+      <div class="card">
+        <div class="card-title">📋 Datos adicionales</div>
+        <div class="field-block"><label>Nombre del dueño</label><input type="text" id="ownerName" placeholder="Ej: Juan Perez"></div>
+        <div class="field-block"><label>Teléfono del dueño</label><input type="text" id="ownerPhone" placeholder="Ej: +54 261 555-0000"></div>
+        <div class="field-block"><label>Numero de microchip</label><input type="text" id="petChip" placeholder="Opcional"></div>
+        <div class="field-block"><label>Veterinario</label><input type="text" id="petVet" placeholder="Nombre del veterinario"></div>
+        <div class="field-block"><label>Telefono veterinario</label><input type="text" id="petVetPhone" placeholder="Ej: +54 261 ..."></div>
+        <div class="field-block"><label>Castrado/a</label>
+          <select id="petCastrated"><option value="">No especificado</option><option value="Si">Si</option><option value="No">No</option></select>
+        </div>
+        <div class="field-block"><label>Alergias / condiciones</label><textarea id="petAllergies" placeholder="Ej: Alergico al pollo..."></textarea></div>
+      </div>
     </div>
-    <div class="card">
-      <div class="card-title">📋 Datos adicionales</div>
-      <div class="field-block"><label>Nombre del dueño</label><input type="text" id="ownerName" placeholder="Ej: Juan Perez"></div>
-      <div class="field-block"><label>Teléfono del dueño</label><input type="text" id="ownerPhone" placeholder="Ej: +54 261 555-0000"></div>
-      <div class="field-block"><label>Numero de microchip</label><input type="text" id="petChip" placeholder="Opcional"></div>
-      <div class="field-block"><label>Veterinario</label><input type="text" id="petVet" placeholder="Nombre del veterinario"></div>
-      <div class="field-block"><label>Telefono veterinario</label><input type="text" id="petVetPhone" placeholder="Ej: +54 261 ..."></div>
-      <div class="field-block"><label>Castrado/a</label>
-        <select id="petCastrated"><option value="">No especificado</option><option value="Si">Si</option><option value="No">No</option></select>
-      </div>
-      <div class="field-block"><label>Alergias / condiciones</label><textarea id="petAllergies" placeholder="Ej: Alergico al pollo..."></textarea></div>
+    <div class="modal-actions" style="justify-content:flex-end;margin-top:20px;">
+      <button class="btn btn-ghost" onclick="salirPerfilDetalle()">Salir</button>
+      <button class="btn btn-primary" onclick="grabarPerfilDetalle()">Grabar</button>
     </div>
   </div>
 </div>
@@ -1246,6 +1255,22 @@ window.saveProfile = function() {
     photoDriveId: state.profile.photoDriveId || ''
   };
   save(); updateHero(); updateNavBadge(); toast('Perfil guardado');
+}
+
+window.abrirPerfilDetalle = function() {
+  document.getElementById('perfilDetalle').style.display = 'block';
+  document.getElementById('btnIngresarPerfil').style.display = 'none';
+}
+
+window.salirPerfilDetalle = function() {
+  document.getElementById('perfilDetalle').style.display = 'none';
+  document.getElementById('btnIngresarPerfil').style.display = '';
+}
+
+window.grabarPerfilDetalle = function() {
+  saveProfile();
+  document.getElementById('perfilDetalle').style.display = 'none';
+  document.getElementById('btnIngresarPerfil').style.display = '';
 }
 
 function updateHero() {
