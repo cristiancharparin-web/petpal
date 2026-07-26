@@ -1261,17 +1261,26 @@ window.saveProfile = function() {
 window.abrirPerfilDetalle = function() {
   document.getElementById('perfilDetalle').style.display = 'block';
   document.getElementById('btnIngresarPerfil').style.display = 'none';
+  document.getElementById('btnCarnet').style.display = 'none';
+  document.getElementById('btnGenerarQR').style.display = 'none';
+  document.getElementById('profileHero').style.display = 'none';
 }
 
 window.salirPerfilDetalle = function() {
   document.getElementById('perfilDetalle').style.display = 'none';
   document.getElementById('btnIngresarPerfil').style.display = '';
+  document.getElementById('btnCarnet').style.display = '';
+  document.getElementById('btnGenerarQR').style.display = '';
+  document.getElementById('profileHero').style.display = '';
 }
 
 window.grabarPerfilDetalle = function() {
   saveProfile();
   document.getElementById('perfilDetalle').style.display = 'none';
   document.getElementById('btnIngresarPerfil').style.display = '';
+  document.getElementById('btnCarnet').style.display = '';
+  document.getElementById('btnGenerarQR').style.display = '';
+  document.getElementById('profileHero').style.display = '';
 }
 
 function updateHero() {
