@@ -874,19 +874,20 @@ window.loadPhoto = async function(event) {
     </button>
   </div>
 
-  <div id="perfilDetalle" style="display:none;">
-    <div class="profile-hero" id="profileHero">
-      <div class="avatar-ring" onclick="document.getElementById('photoInput').click()">
-        <span id="avatarEmoji">🐾</span>
-        <img id="avatarImg" src="" alt="" style="display:none;">
-      </div>
-      <input type="file" id="photoInput" accept="image/*" style="display:none" onchange="loadPhoto(event)">
-      <div class="profile-info">
-        <h2 id="heroName">Tu mascota</h2>
-        <p id="heroSub">Completa el perfil para empezar</p>
-        <div class="profile-chips" id="heroChips"></div>
-      </div>
+  <div class="profile-hero" id="profileHero">
+    <div class="avatar-ring" onclick="document.getElementById('photoInput').click()">
+      <span id="avatarEmoji">🐾</span>
+      <img id="avatarImg" src="" alt="" style="display:none;">
     </div>
+    <input type="file" id="photoInput" accept="image/*" style="display:none" onchange="loadPhoto(event)">
+    <div class="profile-info">
+      <h2 id="heroName">Tu mascota</h2>
+      <p id="heroSub">Completa el perfil para empezar</p>
+      <div class="profile-chips" id="heroChips"></div>
+    </div>
+  </div>
+
+  <div id="perfilDetalle" style="display:none;">
     <div class="profile-grid">
       <div class="card">
         <div class="card-title">🐶 Datos basicos</div>
