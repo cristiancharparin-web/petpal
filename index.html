@@ -29,15 +29,18 @@ html,body{overflow-x:hidden;width:100%;}
 body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--dark);min-height:100vh;}
 
 /* NAV */
-nav{background:var(--dark);padding:0 24px;display:flex;align-items:center;justify-content:space-between;height:64px;position:sticky;top:0;z-index:100;gap:12px;}
+nav{background:var(--dark);padding:0 24px;display:flex;align-items:center;justify-content:space-between;height:60px;position:sticky;top:0;z-index:101;gap:12px;}
 .logo{font-family:'Fraunces',serif;font-size:22px;color:var(--cream);flex-shrink:0;}
 .logo span{color:var(--bark-light);}
-.nav-tabs{display:flex;gap:4px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;min-width:0;}
-.nav-tabs::-webkit-scrollbar{display:none;}
-.nav-tab{background:none;border:none;color:rgba(250,246,240,0.5);font-family:'DM Sans',sans-serif;font-size:14px;font-weight:500;padding:8px 16px;border-radius:8px;cursor:pointer;transition:all 0.2s;flex-shrink:0;white-space:nowrap;}
-.nav-tab:hover{color:var(--cream);background:rgba(255,255,255,0.08);}
-.nav-tab.active{color:var(--dark);background:var(--bark-light);}
 .user-badge{display:flex;align-items:center;gap:10px;flex-shrink:0;}
+
+/* MODULE BAR - navegacion entre modulos, separada del header */
+.module-bar{background:var(--bark);display:flex;position:sticky;top:60px;z-index:100;box-shadow:0 4px 12px rgba(44,36,22,0.12);overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;}
+.module-bar::-webkit-scrollbar{display:none;}
+.module-tab{flex:1 1 0;min-width:66px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;background:none;border:none;border-bottom:3px solid transparent;color:rgba(250,246,240,0.65);font-family:'DM Sans',sans-serif;font-size:11.5px;font-weight:600;padding:10px 4px 8px;cursor:pointer;transition:all 0.2s;white-space:nowrap;}
+.module-tab .module-icon{font-size:18px;line-height:1;}
+.module-tab:hover{color:var(--cream);background:rgba(255,255,255,0.08);}
+.module-tab.active{color:var(--cream);border-bottom-color:var(--gold);background:rgba(255,255,255,0.07);}
 .user-email{font-size:12px;color:rgba(250,246,240,0.6);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .btn-logout{background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);color:var(--cream);font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;padding:6px 12px;border-radius:8px;cursor:pointer;}
 .btn-logout:hover{background:rgba(255,255,255,0.18);}
@@ -260,9 +263,11 @@ textarea{resize:vertical;min-height:80px;}
 #appScreen{display:none;}
 
 @media(max-width:600px){
-  nav{padding:0 12px;gap:8px;}
+  nav{padding:0 12px;gap:8px;height:56px;}
+  .module-bar{top:56px;}
   .logo{font-size:18px;}
-  .nav-tab{padding:8px 10px;font-size:12px;}
+  .module-tab{font-size:10.5px;padding:8px 2px 7px;min-width:58px;}
+  .module-tab .module-icon{font-size:16px;}
   .user-email{display:none;}
   .active-pet-badge{padding:4px 8px 4px 4px;gap:6px;}
   .active-pet-avatar{width:22px;height:22px;}
@@ -411,7 +416,7 @@ window.loadPetFromFirestore = async function(petId) {
     // Siempre arrancar en Perfil al cambiar de mascota
     var allSections = document.getElementsByClassName('app-section');
     for (var si=0; si<allSections.length; si++) allSections[si].classList.remove('active');
-    var allTabs = document.getElementsByClassName('nav-tab');
+    var allTabs = document.getElementsByClassName('module-tab');
     for (var ti=0; ti<allTabs.length; ti++) allTabs[ti].classList.remove('active');
     document.getElementById('section-perfil').classList.add('active');
     allTabs[0].classList.add('active');
@@ -832,13 +837,6 @@ window.loadPhoto = async function(event) {
 <div id="appScreen">
 <nav>
   <div class="logo">🐾 Pet<span>Pal</span></div>
-  <div class="nav-tabs">
-    <button class="nav-tab active" onclick="showSection('perfil',this)">Perfil</button>
-    <button class="nav-tab" onclick="showSection('salud',this)">Salud</button>
-    <button class="nav-tab" onclick="showSection('actividades',this)">Actividades</button>
-    <button class="nav-tab" onclick="showSection('agenda',this)">Agenda</button>
-    <button class="nav-tab" onclick="showSection('fotos',this)">Fotos</button>
-  </div>
   <div class="user-badge">
     <button class="active-pet-badge" id="btnChangePet" title="Cambiar mascota">
       <div class="active-pet-avatar">
@@ -851,6 +849,13 @@ window.loadPhoto = async function(event) {
     <button class="btn-logout" id="btnNavLogout">Salir</button>
   </div>
 </nav>
+<div class="module-bar">
+  <button class="module-tab active" onclick="showSection('perfil',this)"><span class="module-icon">🐾</span>Perfil</button>
+  <button class="module-tab" onclick="showSection('salud',this)"><span class="module-icon">❤️</span>Salud</button>
+  <button class="module-tab" onclick="showSection('actividades',this)"><span class="module-icon">🏃</span>Actividades</button>
+  <button class="module-tab" onclick="showSection('agenda',this)"><span class="module-icon">📅</span>Agenda</button>
+  <button class="module-tab" onclick="showSection('fotos',this)"><span class="module-icon">📷</span>Fotos</button>
+</div>
 <main>
 
 <!-- PERFIL -->
@@ -1188,7 +1193,7 @@ function emptyState() {
 window.showSection = function(id, btn) {
   var all = document.getElementsByClassName('app-section');
   for (var i=0; i<all.length; i++) all[i].classList.remove('active');
-  var tabs = document.getElementsByClassName('nav-tab');
+  var tabs = document.getElementsByClassName('module-tab');
   for (var j=0; j<tabs.length; j++) tabs[j].classList.remove('active');
   var el = document.getElementById('section-' + id);
   if (el) el.classList.add('active');
