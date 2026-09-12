@@ -549,11 +549,11 @@ async function renderPetSelector() {
       + '<button class="pet-card-delete" onclick="event.stopPropagation();confirmDelPet(\'' + pet.id + '\',\'' + name.replace(/'/g,"") + '\')">x</button>'
       + '</div>';
   }
-  if (pets.length < 1) {
+  if (pets.length < 2) {
     html += '<div class="pet-card pet-card-add" onclick="openAddPetModal()">'
       + '<div class="pet-card-avatar pet-card-avatar-add"><span>+</span></div>'
       + '<div class="pet-card-name">Agregar mascota</div>'
-      + '<div class="pet-card-species">' + pets.length + '/1 mascota</div>'
+      + '<div class="pet-card-species">' + pets.length + '/2 mascotas</div>'
       + '</div>';
   }
   grid.innerHTML = html;
@@ -611,7 +611,7 @@ window.saveNewPet = async function() {
   var name = document.getElementById('newPetName').value.trim();
   if (!name) { alert('Ingresa un nombre.'); return; }
   var pets = await loadAllPets();
-  if (pets.length >= 1) { alert('Esta cuenta ya tiene una mascota registrada.'); return; }
+  if (pets.length >= 2) { alert('Esta cuenta ya tiene el maximo de 2 mascotas registradas.'); return; }
   var petId = 'pet_' + Date.now();
   var photoUrl = '';
   var photoDriveId = '';
