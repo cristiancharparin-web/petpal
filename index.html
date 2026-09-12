@@ -16,6 +16,8 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<!-- PayPal SDK - modo SANDBOX. Cuando pases a produccion, cambia el client-id por el de Live -->
+<script src="https://www.paypal.com/sdk/js?client-id=BAAwHagzNurxxZtx7-IoJpw1BwEvj-5mxZYolffZn9TEggMOQaWpEh1KZUqBuondu0SmdvDj7pTEg-4Vt8&currency=USD&intent=capture&components=buttons"></script>
 <style>
 :root {
   --cream:#FAF6F0; --warm:#F2E8D9; --bark:#8B5E3C; --bark-light:#C49A6C;
@@ -193,6 +195,15 @@ textarea{resize:vertical;min-height:80px;}
 
 /* PET SELECTOR */
 #petSelectScreen{display:none;min-height:100vh;align-items:center;justify-content:center;background:linear-gradient(135deg,var(--dark) 0%,#4a3420 50%,var(--bark) 100%);padding:32px 24px;flex-direction:column;}
+
+/* PANTALLA DE PAGO */
+#paymentScreen{display:none;min-height:100vh;align-items:center;justify-content:center;background:linear-gradient(135deg,var(--dark) 0%,#4a3420 50%,var(--bark) 100%);padding:24px;flex-direction:column;}
+.payment-card{background:white;border-radius:28px;padding:40px 36px;width:100%;max-width:420px;box-shadow:0 32px 80px rgba(0,0,0,0.35);text-align:center;}
+.payment-amount{font-family:'Fraunces',serif;font-size:40px;font-weight:700;color:var(--bark);margin:12px 0 4px;}
+.payment-desc{font-size:14px;color:var(--mid);margin-bottom:24px;}
+.payment-email{font-size:12px;color:var(--mid);margin-bottom:20px;word-break:break-all;}
+.payment-status{font-size:13px;color:var(--mid);min-height:18px;margin-top:14px;}
+.payment-logout{margin-top:18px;background:transparent;border:none;color:var(--mid);font-size:12px;text-decoration:underline;cursor:pointer;font-family:'DM Sans',sans-serif;}
 .ps-header{text-align:center;margin-bottom:36px;}
 .ps-logo{font-family:'Fraunces',serif;font-size:34px;font-weight:700;color:var(--cream);margin-bottom:6px;}
 .ps-logo span{color:var(--bark-light);}
@@ -291,6 +302,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/fireba
 import { getAuth, signOut, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, linkWithPopup } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import { getFirestore, doc, setDoc, getDoc, collection, getDocs, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
+import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-functions.js";
 
 const FB = {
   apiKey:"AIzaSyD7YpJGIGif-1XwP0w7nOuvJ-Tp2VBMb6k",
@@ -304,6 +316,14 @@ const app     = initializeApp(FB);
 const auth    = getAuth(app);
 const db      = getFirestore(app);
 const storage = getStorage(app);
+const functions = getFunctions(app); // region por defecto: us-central1
+
+// Llamadas al Cloud Function que verifica el pago con PayPal del lado servidor
+const fnCheckPaymentStatus = httpsCallable(functions, 'checkPaymentStatus');
+const fnCreatePaypalOrder  = httpsCallable(functions, 'createPaypalOrder');
+const fnCapturePaypalOrder = httpsCallable(functions, 'capturePaypalOrder');
+let paypalButtonsRendered = false;
+
 let fbUser = null;
 let fbPetId = null;
 window.fbPetId = null;
@@ -329,16 +349,92 @@ onAuthStateChanged(auth, async function(user) {
     }
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('appScreen').style.display   = 'none';
-    document.getElementById('petSelectScreen').style.display = 'flex';
+    document.getElementById('petSelectScreen').style.display = 'none';
+    document.getElementById('paymentScreen').style.display = 'none';
     document.getElementById('userEmail').textContent = user.email || user.displayName || '';
-    await renderPetSelector();
+    await checkAndRoutePayment();
   } else {
     fbUser = null; fbPetId = null; window.fbPetId = null; googleAccessToken = null;
     document.getElementById('loginScreen').style.display     = 'flex';
     document.getElementById('petSelectScreen').style.display = 'none';
+    document.getElementById('paymentScreen').style.display   = 'none';
     document.getElementById('appScreen').style.display       = 'none';
   }
 });
+
+// ===================== GATE DE PAGO (PayPal) =====================
+// Verifica contra el Cloud Function (que a su vez verifica contra PayPal del
+// lado servidor) si el correo logueado ya tiene el canon pagado.
+async function checkAndRoutePayment() {
+  try {
+    var res = await fnCheckPaymentStatus();
+    if (res.data && res.data.paid) {
+      document.getElementById('paymentScreen').style.display = 'none';
+      document.getElementById('petSelectScreen').style.display = 'flex';
+      await renderPetSelector();
+    } else {
+      showPaymentGate('');
+    }
+  } catch(e) {
+    console.error(e);
+    showPaymentGate('No pudimos verificar tu estado de pago. Si ya habias pagado antes, recarga la pagina o escribinos.');
+  }
+}
+
+function showPaymentGate(statusMsg) {
+  document.getElementById('petSelectScreen').style.display = 'none';
+  document.getElementById('paymentScreen').style.display = 'flex';
+  document.getElementById('paymentGateEmail').textContent = fbUser ? (fbUser.email || '') : '';
+  document.getElementById('paymentGateStatus').textContent = statusMsg || '';
+  if (!paypalButtonsRendered) {
+    renderPaypalButtons();
+    paypalButtonsRendered = true;
+  }
+}
+
+function renderPaypalButtons() {
+  if (typeof paypal === 'undefined') {
+    document.getElementById('paymentGateStatus').textContent = 'No se pudo cargar PayPal. Revisa tu conexion y recarga la pagina.';
+    return;
+  }
+  paypal.Buttons({
+    style: { layout:'vertical', color:'gold', shape:'pill', label:'pay' },
+    createOrder: async function() {
+      document.getElementById('paymentGateStatus').textContent = 'Generando el pago...';
+      try {
+        var res = await fnCreatePaypalOrder();
+        return res.data.orderID;
+      } catch(e) {
+        document.getElementById('paymentGateStatus').textContent = 'Error generando el pago: ' + (e.message || 'desconocido');
+        throw e;
+      }
+    },
+    onApprove: async function(data) {
+      document.getElementById('paymentGateStatus').textContent = 'Confirmando tu pago...';
+      try {
+        var res = await fnCapturePaypalOrder({ orderID: data.orderID });
+        if (res.data && res.data.success) {
+          document.getElementById('paymentGateStatus').textContent = '✅ Pago confirmado!';
+          document.getElementById('paymentScreen').style.display = 'none';
+          document.getElementById('petSelectScreen').style.display = 'flex';
+          await renderPetSelector();
+        } else {
+          document.getElementById('paymentGateStatus').textContent = 'No pudimos confirmar el pago. Intenta de nuevo.';
+        }
+      } catch(e) {
+        document.getElementById('paymentGateStatus').textContent = 'Error confirmando el pago: ' + (e.message || 'desconocido');
+      }
+    },
+    onError: function(err) {
+      console.error(err);
+      document.getElementById('paymentGateStatus').textContent = 'Ocurrio un error con PayPal. Intenta de nuevo.';
+    },
+    onCancel: function() {
+      document.getElementById('paymentGateStatus').textContent = 'Pago cancelado.';
+    }
+  }).render('#paypal-button-container');
+}
+// ===================== FIN GATE DE PAGO =====================
 
 window.doGoogleLogin = async function() {
   var err = document.getElementById('loginError');
@@ -361,6 +457,7 @@ window.doLogout = async function() {
   await signOut(auth);
   fbPetId = null; window.fbPetId = null; googleAccessToken = null; window.googleAccessToken = null;
   document.getElementById('loginError').textContent='';
+  document.getElementById('paymentScreen').style.display = 'none';
 };
 
 // Exponer al scope global para conectarDriveYGenerar
@@ -798,6 +895,22 @@ window.loadPhoto = async function(event) {
   </div>
 </div>
 
+<!-- PANTALLA DE PAGO -->
+<div id="paymentScreen">
+  <div class="payment-card">
+    <div class="login-logo">
+      <span class="paw">🐾</span>
+      <h1>Pet<span>Pal</span></h1>
+    </div>
+    <p class="payment-desc">Para usar PetPal con esta cuenta hace falta abonar el canon de acceso (pago unico).</p>
+    <div class="payment-amount">USD 39,90</div>
+    <div class="payment-email" id="paymentGateEmail"></div>
+    <div id="paypal-button-container"></div>
+    <div class="payment-status" id="paymentGateStatus"></div>
+    <button class="payment-logout" id="btnPaymentLogout">Cerrar sesion</button>
+  </div>
+</div>
+
 <!-- PET SELECTOR -->
 <div id="petSelectScreen">
   <div class="ps-header">
@@ -1201,6 +1314,7 @@ document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('btnPsLogout').addEventListener('click', function() { window.doLogout(); });
   document.getElementById('btnNavLogout').addEventListener('click', function() { window.doLogout(); });
   document.getElementById('btnChangePet').addEventListener('click', function() { window.goToPetSelector(); });
+  document.getElementById('btnPaymentLogout').addEventListener('click', function() { window.doLogout(); });
 
 });
 
