@@ -451,8 +451,16 @@ window.loadPetFromFirestore = async function(petId) {
     var pdfBlock = document.getElementById('healthPdfBlock');
     if (pdfBlock) pdfBlock.style.display = 'none';
     // Limpiar preview de foto de galería si existe
-    var galleryDrop = document.getElementById('galleryDropArea');
-    if (galleryDrop) { galleryDrop.classList.remove('has-preview'); galleryDrop.innerHTML = '<div class="upload-icon">📷</div><div class="upload-hint">Toca para elegir una foto</div>'; }
+    var uploadDrop = document.getElementById('uploadDropArea');
+    if (uploadDrop) {
+      uploadDrop.classList.remove('has-preview');
+      var uIcon = uploadDrop.querySelector('.upload-icon');
+      var uHint = uploadDrop.querySelector('.upload-hint');
+      if (uIcon) uIcon.style.display = 'block';
+      if (uHint) uHint.style.display = 'block';
+    }
+    var uploadPreview = document.getElementById('uploadPreviewImg');
+    if (uploadPreview) uploadPreview.style.display = 'none';
     var galleryInput = document.getElementById('galleryPhotoInput');
     if (galleryInput) galleryInput.value = '';
   } catch(e) { console.error(e); toast('Error: ' + e.message); }
@@ -1808,14 +1816,14 @@ window.conectarDriveYGenerar = async function() {
 
 async function ejecutarGeneracionReporte() {
   var content = document.getElementById('qrReportContent');
-  content.innerHTML = '<div class="report-generating"><div class="spinner"></div><span id="qrStatusMsg">Generando PDF...</span></div>';
+  content.innerHTML = '<div class="report-generating"><div class="spinner"></div><span id="qrStatusMsgLive">Generando PDF...</span></div>';
   try {
     var pdfBlob = await generarPDF();
-    document.getElementById('qrStatusMsg').textContent = 'Subiendo a Google Drive...';
+    document.getElementById('qrStatusMsgLive').textContent = 'Subiendo a Google Drive...';
     var petName = (state.profile && state.profile.name) ? state.profile.name : 'mascota';
     var filename = 'Reporte_' + petName.replace(/\s+/g,'_') + '_' + new Date().toISOString().slice(0,10) + '.pdf';
     var driveResult = await subirPDFaDrive(pdfBlob, filename);
-    document.getElementById('qrStatusMsg').textContent = 'Generando QR...';
+    document.getElementById('qrStatusMsgLive').textContent = 'Generando QR...';
     var shareUrl = 'https://drive.google.com/file/d/' + driveResult.id + '/view?usp=sharing';
     // Guardar driveId del reporte para poder borrarlo al eliminar la mascota
     if (!window.state.driveFiles) window.state.driveFiles = [];
